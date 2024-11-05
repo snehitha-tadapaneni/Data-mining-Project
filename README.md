@@ -14,7 +14,8 @@ Dataset :-
 
 House Pricing Dataset:  https://www.kaggle.com/datasets/christophercorrea/dc-residential-properties?select=raw_address_points.csv
 
-DChttps://opendata.dc.gov/datasets/c5a9f33ffca546babbd91de1969e742d_6/explore?location=38.903935%2C-77.012050%2C10.79
+DC Crime Rate: https://opendata.dc.gov/datasets/c5a9f33ffca546babbd91de1969e742d_6/explore?location=38.903935%2C-77.012050%2C10.79
+
 
 Github repository link
 https://github.com/snehitha-tadapaneni/Data-mining-Project 
