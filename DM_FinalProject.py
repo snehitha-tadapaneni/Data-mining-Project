@@ -33,7 +33,11 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 #%%[markdown]
 ## Data Preparation
-# We have merged and aggregated both datasets based on `census_tract` and offense counts. The final dataset contains 21 columns, including house characteristics (e.g., price, rooms, bathrooms) and offense categories (e.g., ARSON, BURGLARY, HOMICIDE, THEFT). This comprehensive dataset enables a thorough analysis of the relationship between housing attributes and crime rates.
+# We have merged and aggregated both datasets based on `census_tract` and offense counts. 
+# The final dataset contains 21 columns, including house characteristics (e.g., price, rooms, bathrooms) and detailed crime-related features.
+# Specifically, the crime-related deatures include each offense category (e.g., ARSON, BURGLARY, HOMICIDE, THEFT), 
+# method of committing crimes (e.g., GUN, KNIFE), and shift (e.g., DAY, NIGHT).
+# This comprehensive dataset enables a thorough analysis of the relationship between housing attributes and crime rates.
 
 # Step 1: We have extracted only the year 2018 from both the datasets - house_price18, crime_18.
 # Step 2: We have dropped the unecessary columns from both the datasets(code below).
@@ -64,12 +68,90 @@ crime_18.info()
 # Saving the Crime Incident dataset extracted with 2018 year into crime18.csv file
 crime_18.to_csv('crime18.csv')
 
-# Step 3: We have aggregated the crime dataset based on the census tract and count of offenses.(code below)
+#%%[markdown]
+# Step 3: We have aggregated the crime dataset based on the `census_tract` and categorized them by three key features: `offense`, `method`, and `shift`
+# For each feature, we counted the number of incidents per census tract.
 
-########################code for merging and aggregate functions - annie
+#%%
+# Loading the Crime Incident dataset in 2018 
+crime18 = pd.read_csv('crime18.csv')
 
+# Converting column names into lowercase
+crime18.columns = crime18.columns.str.lower()
+# Converting 'census_tract' to string type
+crime18['census_tract'] = crime18['census_tract'].astype(str)
 
+########## Aggregation for All Features ##########
 
+# Aggregating crime incidents by census tract and offense, counting incidents
+crime_counts_by_offense = crime18.groupby(['census_tract','offense'])['unnamed: 0'].count().reset_index()
+crime_counts_by_offense = crime_counts_by_offense.rename(columns={'unnamed: 0': 'count'})
+
+# Aggregating crime incidents by census tract and method, counting incidents
+crime_counts_by_method = crime18.groupby(['census_tract','method'])['unnamed: 0'].count().reset_index()
+crime_counts_by_method = crime_counts_by_method.rename(columns={'unnamed: 0': 'count'})
+
+# Aggregating crime incidents by census tract and shift, counting incidents
+crime_counts_by_shift = crime18.groupby(['census_tract','shift'])['unnamed: 0'].count().reset_index()
+crime_counts_by_shift = crime_counts_by_shift.rename(columns={'unnamed: 0': 'count'})
+
+#%%[markdown]
+# Step 4: We have pivoted the aggregated data to create separate tables for offenses, methods, and shifts, with census_tract as the index.
+
+#%%
+########## Pivot for All Features ##########
+
+# Pivoting aggregated data for offenses by census tract
+crime_pivot_offense = crime_counts_by_offense.pivot(index='census_tract',
+                                                    columns='offense',
+                                                    values='count')
+
+# Pivoting aggregated data for methods by census tract
+crime_pivot_method = crime_counts_by_method.pivot(index='census_tract',
+                                                  columns='method',
+                                                  values='count')
+
+# Pivoting aggregated data for shifts by census tract
+crime_pivot_shift = crime_counts_by_shift.pivot(index='census_tract',
+                                                columns='shift',
+                                                values='count')
+#%%[markdown]
+# Step 5: We have concatenated the pivot tables for offenses, methods, and shifts into a single combined dataset, aligning them by census_tract.
+#%%
+########## Combine All Pivot Tables ##########
+
+# Concatenating offense, method, and shift pivot tables along columns
+crime_pivot_combined = pd.concat([crime_pivot_offense, 
+                                  crime_pivot_method, 
+                                  crime_pivot_shift
+                                  ], axis = 1)
+
+# Reseting the index to convert 'census_tract' from index to a column
+crime_pivot_combined = crime_pivot_combined.reset_index()
+
+# Converting 'census_tract' to string type
+crime_pivot_combined['census_tract'] = crime_pivot_combined['census_tract'].astype('str')
+#%%[markdown]
+# Step 6: We merged the housing data in 2018 with combined crime counts pivot table for features (offense, method, and shift) by census tract
+#%%
+########## Merge Housing Table with Crime Table ##########
+
+# Loading housing data in 2018 
+# housing18 = pd.read_csv('House_price18.csv') 
+
+# Converting column names into lowercase
+housing18.columns = housing18.columns.str.lower()
+# Converting 'census_tract' to string type
+housing18['census_tract'] = housing18['census_tract'].astype('str')
+
+# Merging housing table in 2018 with census tract level crime counts by `offense`, `method`, and `shift`
+df_combined = housing18.merge(crime_pivot_combined, 
+                                left_on=['census_tract'], 
+                                right_on=['census_tract'])
+#%%
+df_combined
+df_combined.info()
+df_combined.to_csv('final_data18.csv') 
 
 # Now, we have our final dataset saved as final_data18.csv. Let's proceed with our Exploration!
 ## Data Exploring and Cleaning
@@ -102,3 +184,5 @@ cp_data.info()
 cp_data.isnull().sum()
 
 # we have no missing values in our dataset
+
+# %%
