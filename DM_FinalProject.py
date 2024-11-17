@@ -137,7 +137,13 @@ crime_pivot_combined['census_tract'] = crime_pivot_combined['census_tract'].asty
 ########## Merge Housing Table with Crime Table ##########
 
 # Loading housing data in 2018 
-# housing18 = pd.read_csv('House_price18.csv') 
+# Read the text file with space as a delimiter
+House_price18 = pd.read_csv('House_price18')
+
+# Save the DataFrame to CSV
+House_price18.to_csv('House_price18.csv', index=False)
+
+housing18 = pd.read_csv('House_price18.csv') 
 
 # Converting column names into lowercase
 housing18.columns = housing18.columns.str.lower()
@@ -184,5 +190,7 @@ cp_data.info()
 cp_data.isnull().sum()
 
 # we have no missing values in our dataset
+
+# %%
 
 # %%
