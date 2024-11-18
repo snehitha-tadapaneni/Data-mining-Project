@@ -31,6 +31,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+
 #%%[markdown]
 ## Data Preparation
 # We have merged and aggregated both datasets based on `census_tract` and offense counts. 
@@ -284,5 +285,100 @@ plt.show()
 
 
 # %%
+#AJ1--Crime Rate vs Rent Relationship
+# Scatter plot for Crime Rate vs Rent
+plt.figure(figsize=(10, 6))
 
+# Scatter plot points
+plt.scatter(cp_data['total_crimes'], cp_data['price'], color='Blue', alpha=0.7)
+
+# Adding labels and title
+plt.title('Crime Rate vs Rent Relationship', fontsize=16)
+plt.xlabel('Total Crimes', fontsize=12)
+plt.ylabel('Average Rent', fontsize=12)
+
+# Adding gridlines
+plt.grid(visible=True, linestyle='--', alpha=0.6)
+
+# Adjust layout for clarity
+plt.tight_layout()
+
+# Show plot
+plt.show()
+# %%
+#AJ2--further analysis 1:Analyze the density of points in clusters to determine patterns.
+# Hexbin Plot for density analysis
+plt.figure(figsize=(10, 6))
+
+# Creating a hexbin plot for density
+plt.hexbin(cp_data['total_crimes'], cp_data['price'], gridsize=30, cmap='Blues', mincnt=1)
+
+# Adding colorbar for density
+cb = plt.colorbar(label='Density')
+
+# Adding labels and title
+plt.title('Density of Crime Rate vs Rent Relationship', fontsize=16)
+plt.xlabel('Total Crimes', fontsize=12)
+plt.ylabel('Average Rent', fontsize=12)
+
+# Adding grid
+plt.grid(visible=True, linestyle='--', alpha=0.6)
+
+# Show plot
+plt.tight_layout()
+plt.show()
+# %%
+#AJ3--Crime Rate vs Rent Relationship with Trend Line
+from scipy.stats import pearsonr
+
+# Scatter plot with a trend line
+plt.figure(figsize=(10, 6))
+
+# Plotting the scatter plot
+sns.scatterplot(x='total_crimes', y='price', data=cp_data, alpha=0.7, color='blue', label='Data Points')
+
+# Adding a trend line (using numpy polyfit for linear regression)
+z = np.polyfit(cp_data['total_crimes'], cp_data['price'], 1)  # 1 for a linear fit
+p = np.poly1d(z)
+plt.plot(cp_data['total_crimes'], p(cp_data['total_crimes']), color='orange', linestyle='--', label='Trend Line')
+
+# Calculating the correlation coefficient
+correlation, _ = pearsonr(cp_data['total_crimes'], cp_data['price'])
+plt.text(50, cp_data['price'].max() * 0.9, f"Correlation: {correlation:.2f}", fontsize=12, color='red')
+
+# Adding labels and title
+plt.title('Crime Rate vs Rent Relationship with Trend Line', fontsize=16)
+plt.xlabel('Total Crimes', fontsize=12)
+plt.ylabel('Average Rent', fontsize=12)
+plt.legend()
+plt.grid(visible=True, linestyle='--', alpha=0.6)
+
+# Show plot
+plt.tight_layout()
+plt.show()
+# %%
+#AJ4--Correlation heat map
+# Calculate Pearson correlation between crime rate and property value
+crime_property_corr = cp_data[['total_crimes', 'price']].corr()
+
+# Visualize the correlation matrix
+
+sns.heatmap(crime_property_corr, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Between Crime Rate and Property Value')
+plt.show()
+# %%
+# from statsmodels.tsa.seasonal import seasonal_decompose
+
+# # Decompose both crime rate and property value time series
+# crime_decomposition = seasonal_decompose(cp_data['total_crimes'], model='additive', period=12)
+# property_decomposition = seasonal_decompose(cp_data['price'], model='additive', period=12)
+
+# # Plot the decompositions
+# crime_decomposition.plot()
+# plt.suptitle('Crime Rate Decomposition')
+# plt.show()
+
+# property_decomposition.plot()
+# plt.suptitle('Property Value Decomposition')
+# plt.show()
 # %%
