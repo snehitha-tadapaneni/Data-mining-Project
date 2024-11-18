@@ -188,8 +188,100 @@ cp_data.info()
 
 # Checking for null values
 cp_data.isnull().sum()
+# These missing values show us where there is no crime rate
+sns.heatmap(cp_data.isnull(), cbar=False, cmap="viridis")
+plt.title("Missing Values in Dataset")
+plt.show()
 
-# we have no missing values in our dataset
+#############################sayam code to handle missing values and dropping few columns#############################
+
+
+# Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
+## Data Visualization: Univariate Analysis
+# %%
+# Histograms for numerical features
+num_cols = ['bathrm', 'rooms', 'kitchens', 'fireplaces', 'ARSON', 'ASSAULT W/DANGEROUS WEAPON', 'BURGLARY', 'HOMICIDE', 'MOTOR VEHICLE THEFT', 'ROBBERY', 'SEX ABUSE', 'THEFT F/AUTO', 'THEFT/OTHER', 'GUN', 'KNIFE', 'OTHERS', 'DAY', 'EVENING', 'MIDNIGHT']
+cp_data[num_cols].hist(figsize=(10, 8), layout=(6, 4 ), edgecolor='black')
+plt.suptitle('Distributions of Numerical Features')
+plt.show()
+
+
+# analysing the target variable - plotting a distribution to understand price
+plt.figure(figsize=(10, 6))
+sns.histplot(cp_data['price'], kde=True)
+plt.title("Distribution of Housing Prices")
+plt.xlabel("Price")
+plt.ylabel("Frequency")
+plt.show()
+
+# %%
+# As the price distribution is highly skewed, lets look at the outliers
+# Boxplot for detecting outliers in price
+plt.figure(figsize=(10, 6))
+sns.boxplot(x=cp_data['price'])
+plt.title("Boxplot of Housing Prices")
+plt.show()
+
+# Removing outliers would not be appropriate for our analysis, as we can draw insights from higher hosuing prices
+
+
+
+
+## Bivariate Analysis
+# %%
+# Heatmap to understand relationship bw price and other variables
+# Select only numerical columns
+numerical_cols = cp_data.select_dtypes(include=['float64', 'int64']).columns
+numerical_df = cp_data[numerical_cols]
+
+# Compute the correlation matrix
+corr = numerical_df.corr()
+
+# Plot the heatmap
+plt.figure(figsize=(12, 8))
+sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+plt.title('Correlation Heatmap')
+plt.show()
+
+
+#%%
+# Prices vs rooms
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='rooms', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of Rooms")
+plt.xlabel("Number of Rooms")
+plt.ylabel("Price")
+plt.show()
+
+# %%
+# Prices vs bathrooms
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='bathrm', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of Bathrooms")
+plt.xlabel("Number of Bathrooms")
+plt.ylabel("Price")
+plt.show()
+
+# %%
+# Prices vs kitchens
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='kitchens', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of Kitchens")
+plt.xlabel("Number of Kitchens")
+plt.ylabel("Price")
+plt.show()
+
+# %%
+# Adding total crime columns
+cp_data['total_crimes'] = cp_data[['ARSON', 'ASSAULT W/DANGEROUS WEAPON', 'BURGLARY', 'HOMICIDE', 
+                             'MOTOR VEHICLE THEFT', 'ROBBERY', 'SEX ABUSE', 
+                             'THEFT F/AUTO', 'THEFT/OTHER']].sum(axis=1)
+
+cp_data['violent_crimes'] = cp_data[['ASSAULT W/DANGEROUS WEAPON', 'HOMICIDE', 'ROBBERY', 'SEX ABUSE']].sum(axis=1)
+
+sns.pairplot(cp_data[['price', 'rooms', 'bathrm', 'kitchens', 'fireplaces', 'total_crimes', 'violent_crimes']])
+plt.show()
+
 
 # %%
 
