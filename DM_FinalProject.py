@@ -278,11 +278,16 @@ cp_data['total_crimes'] = cp_data[['ARSON', 'ASSAULT W/DANGEROUS WEAPON', 'BURGL
                              'MOTOR VEHICLE THEFT', 'ROBBERY', 'SEX ABUSE', 
                              'THEFT F/AUTO', 'THEFT/OTHER']].sum(axis=1)
 
-cp_data['violent_crimes'] = cp_data[['ASSAULT W/DANGEROUS WEAPON', 'HOMICIDE', 'ROBBERY', 'SEX ABUSE']].sum(axis=1)
+# Define crime categories
+violent_crimes = ['ARSON', 'HOMICIDE', 'ASSAULT W/DANGEROUS WEAPON', 'ROBBERY', 'SEX ABUSE', 'GUN']
+non_violent_crimes = ['THEFT F/AUTO', 'BURGLARY', 'MOTOR VEHICLE THEFT', 'OTHERS']
+
+# Calculate sums
+cp_data['violent_crimes'] = cp_data[violent_crimes].sum(axis=1)
+cp_data['non_violent_crimes'] = cp_data[non_violent_crimes].sum(axis=1)
 
 sns.pairplot(cp_data[['price', 'rooms', 'bathrm', 'kitchens', 'fireplaces', 'total_crimes', 'violent_crimes']])
 plt.show()
-
 
 # %%
 #AJ1--Crime Rate vs Rent Relationship
