@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt
 # method of committing crimes (e.g., GUN, KNIFE), and shift (e.g., DAY, NIGHT).
 # This comprehensive dataset enables a thorough analysis of the relationship between housing attributes and crime rates.
 
-# Step 1: We have extracted only the year 2018 from both the datasets - house_price18, crime_18.
+# Step 1: We have extracted year from 2014 to 2018 from both the datasets - crime_2014_2018.
 # Step 2: We have dropped the unecessary columns from both the datasets(code below).
 
 ############################code for dropping columns from house_price18 - sayam
@@ -55,116 +55,76 @@ crime_2014_2018 = pd.read_csv('Crime_Incidents_in_2014_to_2018.csv')
 crime_2014_2018.head
 
 # Dropping a few columns that are irrelevant to our analysis
-columns_to_drop = ['REPORT_DAT', 'WARD', 'ANC', 'NEIGHBORHOOD_CLUSTER', 'BLOCK_GROUP', 'BID', 'DISTRICT', 'PSA', 'X', 'Y', 'CCN', 'XBLOCK', 'YBLOCK', 'VOTING_PRECINCT', 'LATITUDE', 'LONGITUDE', 'END_DATE', 'OBJECTID']  # Replace with the actual column names you want to drop
+columns_to_drop = ['REPORT_DAT', 'WARD', 'ANC', 'NEIGHBORHOOD_CLUSTER', 'BLOCK_GROUP', 'BID', 'DISTRICT', 'PSA', 'X', 'Y', 'CCN', 'XBLOCK', 'YBLOCK', 'VOTING_PRECINCT', 'LATITUDE', 'LONGITUDE', 'END_DATE', 'OBJECTID', 'Unnamed: 24', 'Unnamed: 25']  # Replace with the actual column names you want to drop
 crime_2014_2018 = crime_2014_2018.drop(columns=columns_to_drop)
 
-# Filtering rows where the extracted year is '2018'
-crime_2014_2018['Year_Extracted'] = crime_2014_2018['START_DATE'].astype(str).str[:4]
-crime_18 = crime_2014_2018[crime_2014_2018['Year_Extracted'] == '2018']
+# Filtering rows where year is between 2014 and 2018
+crime_2014_2018['year'] = crime_2014_2018['START_DATE'].astype(str).str[:4]
+crime_2014_2018 = crime_2014_2018[crime_2014_2018['year'].isin(['2014', '2015', '2016', '2017', '2018'])]
 
 # Displaying the filtered dataset
-print(crime_18.head())
-crime_18.info()
-
-# Saving the Crime Incident dataset extracted with 2018 year into crime18.csv file
-crime_18.to_csv('crime18.csv')
+print(crime_2014_2018.head())
+crime_2014_2018.info()
 
 #%%[markdown]
-# Step 3: We have aggregated the crime dataset based on the `census_tract` and categorized them by three key features: `offense`, `method`, and `shift`
-# For each feature, we counted the number of incidents per census tract.
+# Step 3: Aggregate annual crime statistics grouped by `offense`, `method` and `shift`
 
-#%%
-# Loading the Crime Incident dataset in 2018 
-crime18 = pd.read_csv('crime18.csv')
+# Convert column names into lowercases
+crime_2014_2018.columns = crime_2014_2018.columns.str.lower()
 
-# Converting column names into lowercase
-crime18.columns = crime18.columns.str.lower()
-# Converting 'census_tract' to string type
-crime18['census_tract'] = crime18['census_tract'].astype(str)
+# Check for missing values in each column
+crime_2014_2018.isnull().sum()
 
-########## Aggregation for All Features ##########
+# Drop rows with missing values in `year` and `census_tract`
+crime_2014_2018 = crime_2014_2018.dropna(subset=['year', 'census_tract'])
 
-# Aggregating crime incidents by census tract and offense, counting incidents
-crime_counts_by_offense = crime18.groupby(['census_tract','offense'])['unnamed: 0'].count().reset_index()
-crime_counts_by_offense = crime_counts_by_offense.rename(columns={'unnamed: 0': 'count'})
+# Convert `census_tract` and `start_year` into integer data types
+crime_2014_2018['census_tract'] = pd.to_numeric(crime_2014_2018['census_tract'], errors='coerce').astype(int)
+crime_2014_2018['year'] = crime_2014_2018['year'].astype(int)
 
-# Aggregating crime incidents by census tract and method, counting incidents
-crime_counts_by_method = crime18.groupby(['census_tract','method'])['unnamed: 0'].count().reset_index()
-crime_counts_by_method = crime_counts_by_method.rename(columns={'unnamed: 0': 'count'})
+# Apply one-hot encoding to offense, method, and shift columns to prepare for aggregation
+crime_dummies = pd.get_dummies(crime_2014_2018[['year', 'census_tract', 'offense', 'method', 'shift']], columns=['offense', 'method','shift'])
 
-# Aggregating crime incidents by census tract and shift, counting incidents
-crime_counts_by_shift = crime18.groupby(['census_tract','shift'])['unnamed: 0'].count().reset_index()
-crime_counts_by_shift = crime_counts_by_shift.rename(columns={'unnamed: 0': 'count'})
+# Aggregate crime data by year and census tract, summing counts across offense, method, and shift categories
+crime_grouped = crime_dummies.groupby(['year', 'census_tract']).sum().reset_index()
+
+# Filter the aggregated dataset to include only data from 2014 onwards
+crime_grouped = crime_grouped[crime_grouped['year'] >= 2014]
+
+# Display info about the grouped dataset
+crime_grouped.info()
 
 #%%[markdown]
-# Step 4: We have pivoted the aggregated data to create separate tables for offenses, methods, and shifts, with census_tract as the index.
-
-#%%
-########## Pivot for All Features ##########
-
-# Pivoting aggregated data for offenses by census tract
-crime_pivot_offense = crime_counts_by_offense.pivot(index='census_tract',
-                                                    columns='offense',
-                                                    values='count')
-
-# Pivoting aggregated data for methods by census tract
-crime_pivot_method = crime_counts_by_method.pivot(index='census_tract',
-                                                  columns='method',
-                                                  values='count')
-
-# Pivoting aggregated data for shifts by census tract
-crime_pivot_shift = crime_counts_by_shift.pivot(index='census_tract',
-                                                columns='shift',
-                                                values='count')
-#%%[markdown]
-# Step 5: We have concatenated the pivot tables for offenses, methods, and shifts into a single combined dataset, aligning them by census_tract.
-#%%
-########## Combine All Pivot Tables ##########
-
-# Concatenating offense, method, and shift pivot tables along columns
-crime_pivot_combined = pd.concat([crime_pivot_offense, 
-                                  crime_pivot_method, 
-                                  crime_pivot_shift
-                                  ], axis = 1)
-
-# Reseting the index to convert 'census_tract' from index to a column
-crime_pivot_combined = crime_pivot_combined.reset_index()
-
-# Converting 'census_tract' to string type
-crime_pivot_combined['census_tract'] = crime_pivot_combined['census_tract'].astype('str')
-#%%[markdown]
-# Step 6: We merged the housing data in 2018 with combined crime counts pivot table for features (offense, method, and shift) by census tract
-#%%
-########## Merge Housing Table with Crime Table ##########
+# Step 4: We merged the housing data with annual crime statistics
 
 # Loading housing data in 2018 
-# Read the text file with space as a delimiter
-House_price18 = pd.read_csv('House_price18')
+dc_housing = pd.read_csv("dc_house_price.csv")
+dc_housing.columns =  dc_housing.columns.str.lower()
 
-# Save the DataFrame to CSV
-House_price18.to_csv('House_price18.csv', index=False)
+# Drop irrelevant columns
+drop_cols = ['price.1', 'source']
+dc_housing.drop(drop_cols, axis = 1, inplace = True)
 
-housing18 = pd.read_csv('House_price18.csv') 
-
-# Converting column names into lowercase
-housing18.columns = housing18.columns.str.lower()
-# Converting 'census_tract' to string type
-housing18['census_tract'] = housing18['census_tract'].astype('str')
+# Convert `census_tract` and `year` columns into integer data type
+dc_housing['census_tract'] = pd.to_numeric(dc_housing['census_tract'], errors='coerce').astype(int)
+dc_housing['year'] = dc_housing['year'].astype(int)
 
 # Merging housing table in 2018 with census tract level crime counts by `offense`, `method`, and `shift`
-df_combined = housing18.merge(crime_pivot_combined, 
-                                left_on=['census_tract'], 
-                                right_on=['census_tract'])
-#%%
+df_combined = dc_housing.merge(crime_grouped, 
+                            left_on=['year', 'census_tract'], 
+                            right_on=['year','census_tract'],
+                            how = 'inner')
+
 df_combined
 df_combined.info()
-df_combined.to_csv('final_data18.csv') 
+#%%
+df_combined.to_csv('final_return.csv') 
 
 # Now, we have our final dataset saved as final_data18.csv. Let's proceed with our Exploration!
 ## Data Exploring and Cleaning
 #%%
 # Reading the dataset into cp_data
-cp_data = pd.read_csv("final_data18.csv")
+cp_data = pd.read_csv("final_return.csv")
 
 # %%
 # Print first 5 rows of the dataset
