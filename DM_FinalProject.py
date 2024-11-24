@@ -161,7 +161,7 @@ plt.show()
 ## Data Visualization: Univariate Analysis
 # %%
 # Histograms for numerical features
-num_cols = ['bathrm', 'rooms', 'kitchens', 'fireplaces', 'ARSON', 'ASSAULT W/DANGEROUS WEAPON', 'BURGLARY', 'HOMICIDE', 'MOTOR VEHICLE THEFT', 'ROBBERY', 'SEX ABUSE', 'THEFT F/AUTO', 'THEFT/OTHER', 'GUN', 'KNIFE', 'OTHERS', 'DAY', 'EVENING', 'MIDNIGHT']
+num_cols = ['bathrm', 'rooms', 'kitchens', 'fireplaces', 'offense_ARSON', 'offense_ASSAULT W/DANGEROUS WEAPON', 'offense_BURGLARY', 'offense_HOMICIDE', 'offense_MOTOR VEHICLE THEFT', 'offense_ROBBERY', 'offense_SEX ABUSE', 'offense_THEFT F/AUTO', 'offense_THEFT/OTHER', 'method_GUN', 'method_KNIFE', 'method_OTHERS', 'shift_DAY', 'shift_EVENING', 'shift_MIDNIGHT']
 cp_data[num_cols].hist(figsize=(10, 8), layout=(6, 4 ), edgecolor='black')
 plt.suptitle('Distributions of Numerical Features')
 plt.show()
