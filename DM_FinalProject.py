@@ -335,24 +335,66 @@ print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_other
 # Interpretation: Since the p-value is 0.976 (which is greater than 0.05), we fail to reject the null hypothesis, indicating no significant monotonic relationship between price and method_OTHERS.
 #<br>
 
-# Pair plot between crime categories vs the price
+
+# Scatter plot between crime categories vs the price distribution
 # %%
-# Define crime categories as violent and property crimes and encode them by yes(1) and no(0)
-cp_data['VIOLENT_CRIMES'] = (cp_data['OFFENSE_ASSAULT W/DANGEROUS WEAPON'] +
-                       cp_data['OFFENSE_HOMICIDE'] +
-                       cp_data['OFFENSE_ROBBERY'] +
-                       cp_data['OFFENSE_SEX ABUSE']).apply(lambda x: 1 if x > 0 else 0)
+# Aggregate crime counts as violent crime and property crime
+cp_data['VIOLENT_CRIME_COUNT'] = cp_data[['OFFENSE_ASSAULT W/DANGEROUS WEAPON', 'OFFENSE_HOMICIDE', 'OFFENSE_ROBBERY', 'OFFENSE_SEX ABUSE']].sum(axis=1)
 
-cp_data['PROPERTY_CRIMES'] = (cp_data['OFFENSE_ARSON'] +
-                        cp_data['OFFENSE_BURGLARY'] +
-                        cp_data['OFFENSE_MOTOR VEHICLE THEFT'] +
-                        cp_data['OFFENSE_THEFT F/AUTO'] +
-                        cp_data['OFFENSE_THEFT/OTHER']).apply(lambda x: 1 if x > 0 else 0)
+cp_data['PROPERTY_CRIME_COUNT'] = cp_data[['OFFENSE_ARSON', 'OFFENSE_BURGLARY', 'OFFENSE_MOTOR VEHICLE THEFT', 'OFFENSE_THEFT F/AUTO', 'OFFENSE_THEFT/OTHER']].sum(axis=1)
 
-# Visualize relationships using pairplot
-sns.pairplot(cp_data[['PRICE', 'ROOMS', 'BATHRM', 'KITCHENS', 'FIREPLACES','VIOLENT_CRIMES', 'PROPERTY_CRIMES']])
+# Scatter plot for crimes vs price
+plt.figure(figsize=(10, 6))
+plt.scatter(cp_data['VIOLENT_CRIME_COUNT'], cp_data['PRICE'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(cp_data['PROPERTY_CRIME_COUNT'], cp_data['PRICE'], color='blue', alpha=0.6, label='Property Crimes')
+plt.title('Scatter Plot: Violent and Property Crimes vs Price')
+plt.xlabel('Crime Count')
+plt.ylabel('Price')
+plt.legend()
+plt.grid(alpha=0.5)
 plt.show()
 
+#%%[markdown]
+# As, we can see the above scatter plot is too complex to understand.
+# Let us aggregate the data based on census tract and plot the violent and property crime values for more clarity.
+
+#%%
+# Aggregate data by census tract
+tract_data = cp_data.groupby('CENSUS_TRACT').agg({
+    'VIOLENT_CRIME_COUNT': 'sum',
+    'PROPERTY_CRIME_COUNT': 'sum',
+    'PRICE': 'mean'  # Average price per tract
+}).reset_index()
+
+# Scatter plot for aggregated crime counts vs average price
+plt.figure(figsize=(10, 6))
+plt.scatter(tract_data['VIOLENT_CRIME_COUNT'], tract_data['PRICE'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(tract_data['PROPERTY_CRIME_COUNT'], tract_data['PRICE'], color='blue', alpha=0.6, label='Property Crimes')
+plt.title('Crime Counts vs Average Price by Census Tract')
+plt.xlabel('Aggregated Crime Count')
+plt.ylabel('Average Price ($)')
+plt.legend()
+plt.grid(alpha=0.5)
+plt.show()
+
+#%%
+# Compute correlation coefficients: Price vs violent crime vs property crime
+correlation_matrix = cp_data[['PRICE', 'VIOLENT_CRIME_COUNT', 'PROPERTY_CRIME_COUNT']].corr()
+
+# Display correlation matrix
+import seaborn as sns
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Correlation Matrix: Price vs Crime Counts')
+plt.show()
+#%%[markdown]
+# From the above heatmap between Violent Crime, Prperty Crime and Price values, we can say:<br>
+# 1. Violent crime has a stronger and negative impact on property prices compared to property crimes.<br>
+# 2. Property crimes are weakly related to prices, indicating they may not be a strong factor influencing property values in the dataset.<br>
+# 3. The moderate positive correlation between violent and property crimes suggests that crime types are somewhat related in occurrence.<br>
+
+
+########YOUR VISUALIZATIONS AND TESTING HERE################
 
 
 
