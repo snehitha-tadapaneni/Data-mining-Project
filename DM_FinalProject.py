@@ -204,13 +204,15 @@ cp_data.columns = cp_data.columns.str.lower()
 
 cp_data.isna().sum()
 
+cp_data.head()
+
 #%%
 # Drop the 'sale_year' column
 # we will also drop the 'total_gross_column' as we can rely on the median income values for our analysis
-cp_data = cp_data.drop(columns=['saleyear', 'start_year', 'unnamed: 0', 'total_gross_income'])
+cp_data = cp_data.drop(columns=['saledate', 'start_year', 'unnamed: 0', 'total_gross_income'])
 
 # Rename the 'saledate' column to 'year'
-cp_data = cp_data.rename(columns={'saledate': 'year'})
+cp_data = cp_data.rename(columns={'saleyear': 'year'})
 
 #%%
 # Convert all the float to int
@@ -225,7 +227,6 @@ cp_data['ward'] = cp_data['ward'].str.replace('Ward ', '', regex=True).astype(in
 #%%
 # Our final cleaned data has columns
 print(cp_data.columns)
-cp_data.head()
 
 #%%[markdown]
 # Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
@@ -238,7 +239,7 @@ cp_data.head()
 # %%
 # Histograms for numerical features
 num_cols = ['bathrm', 'rooms', 'fireplaces', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
-cp_data[num_cols].hist(figsize=(10, 8), layout=(6, 4 ), edgecolor='black')
+cp_data[num_cols].hist(figsize=(10, 12), layout=(6, 4), edgecolor='black')
 plt.suptitle('Distributions of Numerical Features')
 plt.show()
 
@@ -263,12 +264,24 @@ plt.show()
 
 #%%
 # Removing the outliers from the target variable: price
-cp_data = cp_data[cp_data['price']<1500000]
 
+cp_data_cleaned = cp_data.copy()
+
+q1, q3 = np.percentile(cp_data['price'], 25), np.percentile(cp_data['price'], 75)
+
+iqr = q3-q1
+lower = q1 - 1.5*iqr
+upper = q3 + 1.5*iqr
+
+# Removing the outliers
+cp_data_cleaned = cp_data_cleaned[(cp_data_cleaned['price'] >= lower) & (cp_data_cleaned['price'] <= upper)]
+
+print("New Shape: ", cp_data_cleaned.shape)
+cp_data_cleaned.info()
 #%%
 # Frequency of each method type: Plot for price vs method types
 methods = ['method_gun', 'method_knife', 'method_others']
-method_sums = cp_data[methods].sum()
+method_sums = cp_data_cleaned[methods].sum()
 
 plt.figure(figsize=(8, 6))
 method_sums.plot(kind='bar', color=['skyblue', 'orange', 'green'], alpha=0.8)
@@ -280,7 +293,7 @@ plt.show()
 
 # Distribution of price after removing the outliers
 plt.figure(figsize=(8, 6))
-sns.histplot(cp_data['price'], kde=True, color='purple', bins=30)
+sns.histplot(cp_data_cleaned['price'], kde=True, color='purple', bins=30)
 plt.title('Distribution of Price', fontsize=14)
 plt.xlabel('Price', fontsize=12)
 plt.ylabel('Frequency', fontsize=12)
@@ -290,7 +303,6 @@ plt.show()
 # This tells us that the majority of prices are concentrated towards the lower and middle ranges, while fewer higher prices create a longer tail on the right. Normalizing or scaling the data would be required!
 
 #
-
 #%%[markdown]
 ## Data Visualization: Bivariate Analysis
 # <br>
@@ -298,8 +310,8 @@ plt.show()
 # %%
 # Heatmap to understand relationship bw price and other variables
 # Selected only numerical columns
-numerical_cols = cp_data.select_dtypes(include=['float64', 'int64']).columns
-numerical_df = cp_data[numerical_cols]
+numerical_cols = cp_data_cleaned.select_dtypes(include=['float64', 'int64']).columns
+numerical_df = cp_data_cleaned[numerical_cols]
 
 # Compute the correlation matrix
 corr = numerical_df.corr()
@@ -321,7 +333,7 @@ plt.show()
 #%%
 # Prices vs rooms
 plt.figure(figsize=(10, 6))
-sns.boxplot(x='rooms', y='price', data=cp_data)
+sns.boxplot(x='rooms', y='price', data=cp_data_cleaned)
 plt.title("Housing Prices Based on Number of Rooms")
 plt.xlabel("Number of Rooms")
 plt.ylabel("Price")
@@ -330,7 +342,7 @@ plt.show()
 # %%
 # Prices vs bathrooms
 plt.figure(figsize=(10, 6))
-sns.boxplot(x='bathrm', y='price', data=cp_data)
+sns.boxplot(x='bathrm', y='price', data=cp_data_cleaned)
 plt.title("Housing Prices Based on Number of Bathrooms")
 plt.xlabel("Number of Bathrooms")
 plt.ylabel("Price")
@@ -340,7 +352,7 @@ plt.show()
 #%%
 # Prices vs bed room
 plt.figure(figsize=(10, 6))
-sns.boxplot(x='bedrm', y='price', data=cp_data)
+sns.boxplot(x='bedrm', y='price', data=cp_data_cleaned)
 plt.title("Housing Prices Based on Number of Bed Rooms")
 plt.xlabel("Number of Rooms")
 plt.ylabel("Price")
@@ -349,7 +361,7 @@ plt.show()
 #%%
 # Prices vs ward
 plt.figure(figsize=(10, 6))
-sns.barplot(x='ward', y='price', data=cp_data)
+sns.barplot(x='ward', y='price', data=cp_data_cleaned)
 plt.title("Housing Prices Based on Number of ward")
 plt.xlabel("Ward")
 plt.ylabel("Price")
@@ -364,22 +376,22 @@ plt.figure(figsize=(10, 6))
 
 # Plot for METHOD_GUN
 plt.scatter(
-    cp_data.loc[cp_data['method_gun'] == 1, 'price'],
-    cp_data.loc[cp_data['method_gun'] == 1].index,
+    cp_data_cleaned.loc[cp_data_cleaned['method_gun'] == 1, 'price'],
+    cp_data_cleaned.loc[cp_data_cleaned['method_gun'] == 1].index,
     color='red', label='Gun', alpha=0.6
 )
 
 # Plot for METHOD_KNIFE
 plt.scatter(
-    cp_data.loc[cp_data['method_knife'] == 1, 'price'],
-    cp_data.loc[cp_data['method_knife'] == 1].index,
+    cp_data_cleaned.loc[cp_data_cleaned['method_knife'] == 1, 'price'],
+    cp_data_cleaned.loc[cp_data_cleaned['method_knife'] == 1].index,
     color='blue', label='Knife', alpha=0.6
 )
 
 # Plot for METHOD_OTHERS
 plt.scatter(
-    cp_data.loc[cp_data['method_others'] == 1, 'price'],
-    cp_data.loc[cp_data['method_others'] == 1].index,
+    cp_data_cleaned.loc[cp_data_cleaned['method_others'] == 1, 'price'],
+    cp_data_cleaned.loc[cp_data_cleaned['method_others'] == 1].index,
     color='yellow', label='Others', alpha=0.6
 )
 
@@ -396,9 +408,9 @@ plt.show()
 # Let us perform a statistical test(Spearman Correlation) to check the relationship between the price and the method types and prove our point.
 #%%
 # Calculate Spearman correlation between 'price' and each 'method' type
-corr_gun, p_gun = spearmanr(cp_data['price'], cp_data['method_gun'])
-corr_knife, p_knife = spearmanr(cp_data['price'], cp_data['method_knife'])
-corr_others, p_others = spearmanr(cp_data['price'], cp_data['method_others'])
+corr_gun, p_gun = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_gun'])
+corr_knife, p_knife = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_knife'])
+corr_others, p_others = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_others'])
 
 # Display the results
 print(f"Spearman Correlation for method_GUN: {corr_gun}, p-value: {p_gun}")
@@ -424,14 +436,14 @@ print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_other
 # Scatter plot between crime categories vs the price distribution
 # %%
 # Aggregate crime counts as violent crime and property crime
-cp_data['violent_crime_count'] = cp_data[['offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery', 'offense_sex abuse']].sum(axis=1)
+cp_data_cleaned['violent_crime_count'] = cp_data_cleaned[['offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery', 'offense_sex abuse']].sum(axis=1)
 
-cp_data['property_crime_count'] = cp_data[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
+cp_data_cleaned['property_crime_count'] = cp_data_cleaned[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
 
 # Scatter plot for crimes vs price
 plt.figure(figsize=(10, 6))
-plt.scatter(cp_data['violent_crime_count'], cp_data['price'], color='red', alpha=0.6, label='Violent Crimes')
-plt.scatter(cp_data['property_crime_count'], cp_data['price'], color='blue', alpha=0.6, label='Property Crimes')
+plt.scatter(cp_data_cleaned['violent_crime_count'], cp_data_cleaned['price'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(cp_data_cleaned['property_crime_count'], cp_data_cleaned['price'], color='blue', alpha=0.6, label='Property Crimes')
 plt.title('Scatter Plot: Violent and Property Crimes vs Price')
 plt.xlabel('Crime Count')
 plt.ylabel('Price')
@@ -445,7 +457,7 @@ plt.show()
 
 #%%
 # Aggregate data by census tract
-tract_data = cp_data.groupby('census_tract').agg({
+tract_data = cp_data_cleaned.groupby('census_tract').agg({
     'violent_crime_count': 'sum',
     'property_crime_count': 'sum',
     'price': 'mean'  # Average price per tract
@@ -464,7 +476,7 @@ plt.show()
 
 #%%
 # Compute correlation coefficients: Price vs violent crime vs property crime
-correlation_matrix = cp_data[['price', 'violent_crime_count', 'property_crime_count']].corr()
+correlation_matrix = cp_data_cleaned[['price', 'violent_crime_count', 'property_crime_count']].corr()
 
 # Display correlation matrix
 plt.figure(figsize=(8, 6))
