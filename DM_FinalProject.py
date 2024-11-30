@@ -37,91 +37,128 @@ from scipy.stats import f_oneway
 #%%[markdown]
 ## Data Preparation
 # We have merged and aggregated both datasets based on `census_tract` and offense counts. 
-# The final dataset contains 21 columns, including house characteristics (e.g., price, rooms, bathrooms) and detailed crime-related features.
+# The final dataset contains 31 columns, including house characteristics (e.g., price, rooms, bathrooms) and detailed crime-related features.
 # Specifically, the crime-related deatures include each offense category (e.g., ARSON, BURGLARY, HOMICIDE, THEFT), 
 # method of committing crimes (e.g., GUN, KNIFE), and shift (e.g., DAY, NIGHT).
 # This comprehensive dataset enables a thorough analysis of the relationship between housing attributes and crime rates.
 
-# Step 1: We have extracted year from 2014 to 2018 from both the datasets - crime and housing prices.
-# Step 2: We have dropped the unecessary columns from both the datasets.
-
-# Reading the crime dataset (From years 2014 - 2018)
-crime_2014_2018 = pd.read_csv('Crime_Incidents_in_2014_to_2018.csv')
-
-# looking at the dataset
-# crime_2014_2018.head
-
-# Dropping a few columns that are irrelevant to our analysis
-columns_to_drop = ['REPORT_DAT', 'WARD', 'ANC', 'NEIGHBORHOOD_CLUSTER', 'BLOCK_GROUP', 'BID', 'DISTRICT', 'PSA', 'X', 'Y', 'CCN', 'XBLOCK', 'YBLOCK', 'VOTING_PRECINCT', 'LATITUDE', 'LONGITUDE', 'END_DATE', 'OBJECTID', 'Unnamed: 24', 'Unnamed: 25']  # Replace with the actual column names you want to drop
-crime_2014_2018 = crime_2014_2018.drop(columns=columns_to_drop)
-
-# Filtering rows where year is between 2014 and 2018
-crime_2014_2018['year'] = crime_2014_2018['START_DATE'].astype(str).str[:4]
-crime_2014_2018 = crime_2014_2018[crime_2014_2018['year'].isin(['2014', '2015', '2016', '2017', '2018'])]
-
-# Displaying the filtered dataset
-# crime_2014_2018.info()
-
-#%%[markdown]
-# Step 3: Aggregate annual crime statistics grouped by `offense`, `method` and `shift`
 
 #%%
-# Convert column names into lowercases
-crime_2014_2018.columns = crime_2014_2018.columns.str.lower()
+#############################
+# Step 1: Load and preprocess crime data
+#############################
 
-# Check for missing values in each column
-crime_2014_2018.isnull().sum()
+# Load crime data
+dc_crime = pd.read_csv('dc_crime.csv') 
 
-# Drop rows with missing values in `year` and `census_tract`
-crime_2014_2018 = crime_2014_2018.dropna(subset=['year', 'census_tract'])
+# Remove rows where 'start_year' is missing
+dc_crime = dc_crime.dropna(subset=['start_year'])
 
-# Convert `census_tract` and `start_year` into integer data types
-crime_2014_2018['census_tract'] = pd.to_numeric(crime_2014_2018['census_tract'], errors='coerce').astype(int)
-crime_2014_2018['year'] = crime_2014_2018['year'].astype(int)
+# Convert 'start_year' to integer for consistency
+dc_crime['start_year'] = dc_crime['start_year'].astype(int)
 
-# Apply one-hot encoding to offense, method, and shift columns to prepare for aggregation
-crime_dummies = pd.get_dummies(crime_2014_2018[['year', 'census_tract', 'offense', 'method', 'shift']], columns=['offense', 'method','shift'])
+# Keep rows where 'census_tract' is not null and convert it to integer
+dc_crime = dc_crime[dc_crime['census_tract'].notnull()]
+dc_crime['census_tract'] = dc_crime['census_tract'].astype(float).astype(int)
 
-# Aggregate crime data by year and census tract, summing counts across offense, method, and shift categories
-crime_grouped = crime_dummies.groupby(['year', 'census_tract']).sum().reset_index()
-
-# Filter the aggregated dataset to include only data from 2014 onwards
-crime_grouped = crime_grouped[crime_grouped['year'] >= 2014]
-
-# Display info about the grouped dataset
-# crime_grouped.info()
-
-#%%[markdown]
-# Step 4: We merged the housing data with annual crime statistics
-
-# Loading housing data in 2018 
-dc_housing = pd.read_csv("dc_house_price.csv")
-dc_housing.columns =  dc_housing.columns.str.lower()
-
-# Drop irrelevant columns
-drop_cols = ['price.1', 'source']
-dc_housing.drop(drop_cols, axis = 1, inplace = True)
-
-# Convert `census_tract` and `year` columns into integer data type
-dc_housing['census_tract'] = pd.to_numeric(dc_housing['census_tract'], errors='coerce').astype(int)
-dc_housing['year'] = dc_housing['year'].astype(int)
-
-# Merging housing table in 2018 with census tract level crime counts by `offense`, `method`, and `shift`
-df_combined = dc_housing.merge(crime_grouped, 
-                            left_on=['year', 'census_tract'], 
-                            right_on=['year','census_tract'],
-                            how = 'inner')
-
-df_combined.info()
 #%%
-df_combined.to_csv('final_return.csv') 
+#############################
+# Step 2: Create dummy variables for categorical columns
+#############################
+
+# Generate dummy variables for offense types, methods, and shift
+offense_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'offense']], columns=['offense'])
+method_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'method']], columns=['method'])
+shift_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'shift']], columns=['shift'])
+
+#%%
+#############################
+# Step 3: Group data by year and census tract
+#############################
+
+# Sum dummy variables grouped by 'start_year' and 'census_tract'
+offense_grouped = offense_dummies.groupby(['start_year', 'census_tract']).sum().reset_index()
+method_grouped = method_dummies.groupby(['start_year', 'census_tract']).sum().reset_index()
+shift_grouped = shift_dummies.groupby(['start_year', 'census_tract']).sum().reset_index()
+
+# Filter data for years 2014 and later
+offense_grouped = offense_grouped[offense_grouped['start_year'] >= 2014]
+method_grouped = method_grouped[method_grouped['start_year'] >= 2014]
+shift_grouped = shift_grouped[shift_grouped['start_year'] >= 2014]
+
+#%%
+#############################
+# Step 4: Merge grouped data into a combined dataset
+#############################
+
+# Merge offense, method, and shift data into a single dataframe
+crime_census_combined = offense_grouped.merge(
+    method_grouped, 
+    on=['start_year', 'census_tract']
+).merge(
+    shift_grouped, 
+    on=['start_year', 'census_tract']
+)
+
+# Convert 'census_tract' to object type for consistency with housing data
+crime_census_combined['census_tract'] = crime_census_combined['census_tract'].astype(object)
+crime_census_combined['start_year'] = crime_census_combined['start_year'].astype(int)
+
+#%%
+#############################
+# Step 5: Load and preprocess housing data
+#############################
+
+# Load housing data
+dc_housing = pd.read_csv("tract_house_101.csv")
+
+# Drop unnecessary columns from the housing dataset
+columns_to_drop = [
+    'HF_BATHRM','HEAT','AC','AYB','YR_RMDL','EYB','STORIES','QUALIFIED','SALE_NUM','GBA','BLDG_NUM','STYLE','STRUCT','GRADE','CNDTN',
+ 'EXTWALL','ROOF','INTWALL', 'USECODE','LANDAREA','GIS_LAST_MOD_DTTM','SOURCE','CMPLX_NUM','LIVING_GBA','FULLADDRESS','CITY','STATE',
+ 'ZIPCODE','NATIONALGRID','LATITUDE','LONGITUDE','ASSESSMENT_NBHD','ASSESSMENT_SUBNBHD','CENSUS_BLOCK','SQUARE','X', 'Y','QUADRANT', 'TRACT',
+ 'GEOID', 'P0010001','P0010002','P0010003','P0010004','P0010005','P0010006','P0010007','P0010008','OP000001','OP000002','OP000003',
+ 'OP000004','P0020002','P0020005','P0020006','P0020007','P0020008','P0020009','P0020010','OP00005','OP00006','OP00007','OP00008',
+ 'P0030001','P0030003','P0030004','P0030005','P0030006','P0030007','P0030008','OP00009','OP00010','OP00011','OP00012','P0040002','P0040005',
+ 'P0040006','P0040007','P0040008','P0040009','P0040010','OP000013','OP000014','OP000015','OP000016','H0010001','H0010002','H0010003',
+ 'SQ_MILES','Shape_Length','Shape_Area','FAGI_TOTAL_2010','FAGI_MEDIAN_2010','FAGI_TOTAL_2013','FAGI_MEDIAN_2013','FAGI_TOTAL_2011','FAGI_MEDIAN_2011','FAGI_TOTAL_2012',
+ 'FAGI_MEDIAN_2012','FAGI_TOTAL_2015','FAGI_MEDIAN_2015'
+]
+dc_housing = dc_housing.drop(columns=columns_to_drop)
+
+# Standardize column names to lowercase for consistency
+dc_housing.columns = dc_housing.columns.str.lower()
+
+# Convert 'census_tract' to object type for consistency
+dc_housing['census_tract'] = dc_housing['census_tract'].astype(object)
+
+#%%
+#############################
+# Step 6: Merge crime and housing data
+#############################
+
+# Merge housing and crime data based on 'census_tract' and year
+cp_data = dc_housing.merge(
+    crime_census_combined, 
+    left_on=['saleyear', 'census_tract'], 
+    right_on=['start_year', 'census_tract']
+)
+
+
+#%%
+#############################
+# Step 7: Save the final merged dataset
+#############################
+
+# Export the combined data to a CSV file
+#cp_data.to_csv('final_return_new.csv', index=False)
 
 #%%[markdown]
-# Now, we have our final dataset saved as final_return.csv. Let's proceed with our Exploration!
+# Now, we have our final dataset saved as final_return_new.csv. Let's proceed with our Exploration!
 ## Data Exploring and Cleaning
 #%%
 # Reading the dataset into cp_data
-cp_data = pd.read_csv("final_return.csv")
+cp_data = pd.read_csv("final_return_new.csv")
 
 # %%
 # Look at the first 5 rows of the dataset
@@ -142,18 +179,56 @@ cp_data.info()
 # Statistics of the data
 cp_data.describe()
 
+#%%
 # Checking for null values/ missing values
 cp_data.isnull().sum()
 # A heatmap to visualise the missing data points if any
 sns.heatmap(cp_data.isnull(), cbar=False, cmap="viridis")
 plt.title("Missing Values in Dataset")
 plt.show()
+
 #%%[markdown]
-# We do not have any missing values in our dataset. Phew, no need to handle them!
+#### We can see missing values in num_units, price and kitchens. Let's handle them!
+#%%
+# Drop rows where the 'price' column is missing
+dc_housing = dc_housing.dropna(subset=['price'])
 
-# Renaming the columns, all to upper cases
-cp_data.columns = cp_data.columns.str.upper()
+# Replace missing values in 'num_units' and 'kitchens' with 0
+dc_housing['num_units'] = dc_housing['num_units'].fillna(0)
+dc_housing['kitchens'] = dc_housing['kitchens'].fillna(0)
 
+#%%
+# Let's Check again
+print(dc_housing[['price', 'num_units', 'kitchens']].info())
+
+#%%
+# Renaming the columns, all to lower cases
+cp_data.columns = cp_data.columns.str.lower()
+
+#%%
+# Drop the 'sale_year' column
+# we will also drop the 'total_gross_column' as we can rely on the median income values for our analysis
+cp_data = cp_data.drop(columns=['saleyear', 'start_year' 'unnamed: 0', 'total_gross_income'])
+
+# Rename the 'saledate' column to 'year'
+cp_data = cp_data.rename(columns={'saledate': 'year'})
+
+#%%
+# Convert all the float to int
+#######################Add ur code here if u any
+
+#%%
+# Converting ward object type to int
+# Remove 'Ward ' prefix and convert to integer
+dc_housing['ward'] = dc_housing['ward'].str.replace('Ward ', '', regex=True).astype(int)
+
+
+
+#%%
+# Our final cleaned data has columns
+print(cp_data.columns)
+
+#%%[markdown]
 # Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
 
 #
@@ -163,14 +238,14 @@ cp_data.columns = cp_data.columns.str.upper()
 # Distribution for all numerical features and the target variable
 # %%
 # Histograms for numerical features
-num_cols = ['BATHRM', 'ROOMS', 'KITCHENS', 'FIREPLACES', 'OFFENSE_ARSON', 'OFFENSE_ASSAULT W/DANGEROUS WEAPON', 'OFFENSE_BURGLARY', 'OFFENSE_HOMICIDE', 'OFFENSE_MOTOR VEHICLE THEFT', 'OFFENSE_ROBBERY', 'OFFENSE_SEX ABUSE', 'OFFENSE_THEFT F/AUTO', 'OFFENSE_THEFT/OTHER', 'METHOD_GUN', 'METHOD_KNIFE', 'METHOD_OTHERS', 'SHIFT_DAY', 'SHIFT_EVENING', 'SHIFT_MIDNIGHT']
+num_cols = ['bathrm', 'rooms', 'kitchens', 'fireplaces', 'num_units', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
 cp_data[num_cols].hist(figsize=(10, 8), layout=(6, 4 ), edgecolor='black')
 plt.suptitle('Distributions of Numerical Features')
 plt.show()
 
 # Analysing the target variable - plotting a distribution to understand price
 plt.figure(figsize=(10, 6))
-sns.histplot(cp_data['PRICE'], kde=True)
+sns.histplot(cp_data['price'], kde=True)
 plt.title("Distribution of Housing Prices")
 plt.xlabel("Price")
 plt.ylabel("Frequency")
@@ -180,7 +255,7 @@ plt.show()
 # As the price distribution is highly skewed, lets look at the outliers in the target variable.
 # Boxplot for detecting outliers in price
 plt.figure(figsize=(10, 6))
-sns.boxplot(x=cp_data['PRICE'])
+sns.boxplot(x=cp_data['price'])
 plt.title("Boxplot of Housing Prices")
 plt.show()
 
@@ -189,11 +264,11 @@ plt.show()
 
 #%%
 # Removing the outliers from the target variable: price
-cp_data = cp_data[cp_data['PRICE']<1500000]
+cp_data = cp_data[cp_data['price']<1500000]
 
 #%%
 # Frequency of each method type: Plot for price vs method types
-methods = ['METHOD_GUN', 'METHOD_KNIFE', 'METHOD_OTHERS']
+methods = ['method_gun', 'method_knife', 'method_others']
 method_sums = cp_data[methods].sum()
 
 plt.figure(figsize=(8, 6))
@@ -206,7 +281,7 @@ plt.show()
 
 # Distribution of price after removing the outliers
 plt.figure(figsize=(8, 6))
-sns.histplot(cp_data['PRICE'], kde=True, color='purple', bins=30)
+sns.histplot(cp_data['price'], kde=True, color='purple', bins=30)
 plt.title('Distribution of Price', fontsize=14)
 plt.xlabel('Price', fontsize=12)
 plt.ylabel('Frequency', fontsize=12)
@@ -237,7 +312,7 @@ plt.title('Correlation Heatmap')
 plt.show()
 #%%[markdown]
 # *Price Correlations Obervations*:
-# <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices.
+# <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices. Also, price has a positive correlation with median gross income of the households.
 # <br> 2. BATHRM, ROOMS, and FIREPLACES show mild positive correlations with PRICE, indicating that these features might drive higher property values.
 # <br> 3.  METHOD_GUN and other offense-related variables have a negative correlation with PRICE, implying that crime rates might negatively impact property values.
 # <br><br>
@@ -271,6 +346,34 @@ plt.xlabel("Number of Kitchens")
 plt.ylabel("Price")
 plt.show()
 
+#%%
+# Prices vs number of units
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='num_units', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of Units")
+plt.xlabel("Number of Rooms")
+plt.ylabel("Price")
+plt.show()
+
+#%%
+# Prices vs bed room
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='bedrm', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of Bed Rooms")
+plt.xlabel("Number of Rooms")
+plt.ylabel("Price")
+plt.show()
+
+#%%
+# Prices vs ward
+plt.figure(figsize=(10, 6))
+sns.barplot(x='ward', y='price', data=cp_data)
+plt.title("Housing Prices Based on Number of ward")
+plt.xlabel("Number of Rooms")
+plt.ylabel("Price")
+plt.show()
+
+
 #%%[markdown]
 # # Scatter plot: All method types(gun, knife, others) vs housing prices
 #%%
@@ -279,22 +382,22 @@ plt.figure(figsize=(10, 6))
 
 # Plot for METHOD_GUN
 plt.scatter(
-    cp_data.loc[cp_data['METHOD_GUN'] == 1, 'PRICE'],
-    cp_data.loc[cp_data['METHOD_GUN'] == 1].index,
+    cp_data.loc[cp_data['method_gun'] == 1, 'price'],
+    cp_data.loc[cp_data['method_gun'] == 1].index,
     color='red', label='Gun', alpha=0.6
 )
 
 # Plot for METHOD_KNIFE
 plt.scatter(
-    cp_data.loc[cp_data['METHOD_KNIFE'] == 1, 'PRICE'],
-    cp_data.loc[cp_data['METHOD_KNIFE'] == 1].index,
+    cp_data.loc[cp_data['method_knife'] == 1, 'price'],
+    cp_data.loc[cp_data['method_knife'] == 1].index,
     color='blue', label='Knife', alpha=0.6
 )
 
 # Plot for METHOD_OTHERS
 plt.scatter(
-    cp_data.loc[cp_data['METHOD_OTHERS'] == 1, 'PRICE'],
-    cp_data.loc[cp_data['METHOD_OTHERS'] == 1].index,
+    cp_data.loc[cp_data['method_others'] == 1, 'price'],
+    cp_data.loc[cp_data['method_others'] == 1].index,
     color='yellow', label='Others', alpha=0.6
 )
 
@@ -311,9 +414,9 @@ plt.show()
 # Let us perform a statistical test(Spearman Correlation) to check the relationship between the price and the method types and prove our point.
 #%%
 # Calculate Spearman correlation between 'price' and each 'method' type
-corr_gun, p_gun = spearmanr(cp_data['PRICE'], cp_data['METHOD_GUN'])
-corr_knife, p_knife = spearmanr(cp_data['PRICE'], cp_data['METHOD_KNIFE'])
-corr_others, p_others = spearmanr(cp_data['PRICE'], cp_data['METHOD_OTHERS'])
+corr_gun, p_gun = spearmanr(cp_data['price'], cp_data['method_gun'])
+corr_knife, p_knife = spearmanr(cp_data['price'], cp_data['method_knife'])
+corr_others, p_others = spearmanr(cp_data['price'], cp_data['method_others'])
 
 # Display the results
 print(f"Spearman Correlation for method_GUN: {corr_gun}, p-value: {p_gun}")
@@ -339,14 +442,14 @@ print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_other
 # Scatter plot between crime categories vs the price distribution
 # %%
 # Aggregate crime counts as violent crime and property crime
-cp_data['VIOLENT_CRIME_COUNT'] = cp_data[['OFFENSE_ASSAULT W/DANGEROUS WEAPON', 'OFFENSE_HOMICIDE', 'OFFENSE_ROBBERY', 'OFFENSE_SEX ABUSE']].sum(axis=1)
+cp_data['violent_crime_count'] = cp_data[['offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery', 'offense_sex abuse']].sum(axis=1)
 
-cp_data['PROPERTY_CRIME_COUNT'] = cp_data[['OFFENSE_ARSON', 'OFFENSE_BURGLARY', 'OFFENSE_MOTOR VEHICLE THEFT', 'OFFENSE_THEFT F/AUTO', 'OFFENSE_THEFT/OTHER']].sum(axis=1)
+cp_data['property_crime_count'] = cp_data[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
 
 # Scatter plot for crimes vs price
 plt.figure(figsize=(10, 6))
-plt.scatter(cp_data['VIOLENT_CRIME_COUNT'], cp_data['PRICE'], color='red', alpha=0.6, label='Violent Crimes')
-plt.scatter(cp_data['PROPERTY_CRIME_COUNT'], cp_data['PRICE'], color='blue', alpha=0.6, label='Property Crimes')
+plt.scatter(cp_data['violent_crime_count'], cp_data['price'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(cp_data['property_crime_count'], cp_data['price'], color='blue', alpha=0.6, label='Property Crimes')
 plt.title('Scatter Plot: Violent and Property Crimes vs Price')
 plt.xlabel('Crime Count')
 plt.ylabel('Price')
@@ -360,16 +463,16 @@ plt.show()
 
 #%%
 # Aggregate data by census tract
-tract_data = cp_data.groupby('CENSUS_TRACT').agg({
-    'VIOLENT_CRIME_COUNT': 'sum',
-    'PROPERTY_CRIME_COUNT': 'sum',
-    'PRICE': 'mean'  # Average price per tract
+tract_data = cp_data.groupby('census_tract').agg({
+    'violent_crime_count': 'sum',
+    'property_crime_count': 'sum',
+    'price': 'mean'  # Average price per tract
 }).reset_index()
 
 # Scatter plot for aggregated crime counts vs average price
 plt.figure(figsize=(10, 6))
-plt.scatter(tract_data['VIOLENT_CRIME_COUNT'], tract_data['PRICE'], color='red', alpha=0.6, label='Violent Crimes')
-plt.scatter(tract_data['PROPERTY_CRIME_COUNT'], tract_data['PRICE'], color='blue', alpha=0.6, label='Property Crimes')
+plt.scatter(tract_data['violent_crime_count'], tract_data['price'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(tract_data['property_crime_count'], tract_data['price'], color='blue', alpha=0.6, label='Property Crimes')
 plt.title('Crime Counts vs Average Price by Census Tract')
 plt.xlabel('Aggregated Crime Count')
 plt.ylabel('Average Price ($)')
@@ -379,10 +482,9 @@ plt.show()
 
 #%%
 # Compute correlation coefficients: Price vs violent crime vs property crime
-correlation_matrix = cp_data[['PRICE', 'VIOLENT_CRIME_COUNT', 'PROPERTY_CRIME_COUNT']].corr()
+correlation_matrix = cp_data[['price', 'violent_crime_count', 'property_crime_count']].corr()
 
 # Display correlation matrix
-import seaborn as sns
 plt.figure(figsize=(8, 6))
 sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
 plt.title('Correlation Matrix: Price vs Crime Counts')
