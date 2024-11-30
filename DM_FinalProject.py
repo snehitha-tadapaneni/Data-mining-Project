@@ -49,7 +49,7 @@ from scipy.stats import f_oneway
 #############################
 
 # Load crime data
-dc_crime = pd.read_csv('dc_crime.csv') 
+dc_crime = pd.read_csv('dc_crime.csv', index_col = 0) 
 
 # Remove rows where 'start_year' is missing
 dc_crime = dc_crime.dropna(subset=['start_year'])
@@ -60,6 +60,7 @@ dc_crime['start_year'] = dc_crime['start_year'].astype(int)
 # Keep rows where 'census_tract' is not null and convert it to integer
 dc_crime = dc_crime[dc_crime['census_tract'].notnull()]
 dc_crime['census_tract'] = dc_crime['census_tract'].astype(float).astype(int)
+
 
 #%%
 #############################
@@ -110,12 +111,12 @@ crime_census_combined['start_year'] = crime_census_combined['start_year'].astype
 #############################
 
 # Load housing data
-dc_housing = pd.read_csv("tract_house_101.csv")
+dc_housing = pd.read_csv("tract_house_101.csv", index_col = 0)
 
 # Drop unnecessary columns from the housing dataset
 columns_to_drop = [
     'HF_BATHRM','HEAT','AC','AYB','YR_RMDL','EYB','STORIES','QUALIFIED','SALE_NUM','GBA','BLDG_NUM','STYLE','STRUCT','GRADE','CNDTN',
- 'EXTWALL','ROOF','INTWALL', 'USECODE','LANDAREA','GIS_LAST_MOD_DTTM','SOURCE','CMPLX_NUM','LIVING_GBA','FULLADDRESS','CITY','STATE',
+ 'EXTWALL','ROOF','INTWALL', 'USECODE','LANDAREA','GIS_LAST_MOD_DTTM', 'SOURCE','CMPLX_NUM','LIVING_GBA','FULLADDRESS','CITY','STATE',
  'ZIPCODE','NATIONALGRID','LATITUDE','LONGITUDE','ASSESSMENT_NBHD','ASSESSMENT_SUBNBHD','CENSUS_BLOCK','SQUARE','X', 'Y','QUADRANT', 'TRACT',
  'GEOID', 'P0010001','P0010002','P0010003','P0010004','P0010005','P0010006','P0010007','P0010008','OP000001','OP000002','OP000003',
  'OP000004','P0020002','P0020005','P0020006','P0020007','P0020008','P0020009','P0020010','OP00005','OP00006','OP00007','OP00008',
@@ -144,7 +145,6 @@ cp_data = dc_housing.merge(
     right_on=['start_year', 'census_tract']
 )
 
-
 #%%
 #############################
 # Step 7: Save the final merged dataset
@@ -159,7 +159,6 @@ cp_data = dc_housing.merge(
 #%%
 # Reading the dataset into cp_data
 cp_data = pd.read_csv("final_return_new.csv")
-
 # %%
 # Look at the first 5 rows of the dataset
 cp_data.head()
@@ -191,24 +190,24 @@ plt.show()
 #### We can see missing values in num_units, price and kitchens. Let's handle them!
 #%%
 # Drop rows where the 'price' column is missing
-dc_housing = dc_housing.dropna(subset=['price'])
+cp_data = cp_data.dropna(subset=['price'])
 
-# Replace missing values in 'num_units' and 'kitchens' with 0
-dc_housing['num_units'] = dc_housing['num_units'].fillna(0)
-dc_housing['kitchens'] = dc_housing['kitchens'].fillna(0)
-
+# Drop columns that contain missing values: 'num_units' and 'kitchens'
+cp_data.dropna(axis=1, inplace=True)
 #%%
 # Let's Check again
-print(dc_housing[['price', 'num_units', 'kitchens']].info())
+print(cp_data.info())
 
 #%%
 # Renaming the columns, all to lower cases
 cp_data.columns = cp_data.columns.str.lower()
 
+cp_data.isna().sum()
+
 #%%
 # Drop the 'sale_year' column
 # we will also drop the 'total_gross_column' as we can rely on the median income values for our analysis
-cp_data = cp_data.drop(columns=['saleyear', 'start_year' 'unnamed: 0', 'total_gross_income'])
+cp_data = cp_data.drop(columns=['saleyear', 'start_year', 'unnamed: 0', 'total_gross_income'])
 
 # Rename the 'saledate' column to 'year'
 cp_data = cp_data.rename(columns={'saledate': 'year'})
@@ -220,13 +219,13 @@ cp_data = cp_data.rename(columns={'saledate': 'year'})
 #%%
 # Converting ward object type to int
 # Remove 'Ward ' prefix and convert to integer
-dc_housing['ward'] = dc_housing['ward'].str.replace('Ward ', '', regex=True).astype(int)
-
+cp_data['ward'] = cp_data['ward'].str.replace('Ward ', '', regex=True).astype(int)
 
 
 #%%
 # Our final cleaned data has columns
 print(cp_data.columns)
+cp_data.head()
 
 #%%[markdown]
 # Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
@@ -238,7 +237,7 @@ print(cp_data.columns)
 # Distribution for all numerical features and the target variable
 # %%
 # Histograms for numerical features
-num_cols = ['bathrm', 'rooms', 'kitchens', 'fireplaces', 'num_units', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
+num_cols = ['bathrm', 'rooms', 'fireplaces', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
 cp_data[num_cols].hist(figsize=(10, 8), layout=(6, 4 ), edgecolor='black')
 plt.suptitle('Distributions of Numerical Features')
 plt.show()
@@ -337,23 +336,6 @@ plt.xlabel("Number of Bathrooms")
 plt.ylabel("Price")
 plt.show()
 
-# %%
-# Prices vs kitchens
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='kitchens', y='price', data=cp_data)
-plt.title("Housing Prices Based on Number of Kitchens")
-plt.xlabel("Number of Kitchens")
-plt.ylabel("Price")
-plt.show()
-
-#%%
-# Prices vs number of units
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='num_units', y='price', data=cp_data)
-plt.title("Housing Prices Based on Number of Units")
-plt.xlabel("Number of Rooms")
-plt.ylabel("Price")
-plt.show()
 
 #%%
 # Prices vs bed room
@@ -369,7 +351,7 @@ plt.show()
 plt.figure(figsize=(10, 6))
 sns.barplot(x='ward', y='price', data=cp_data)
 plt.title("Housing Prices Based on Number of ward")
-plt.xlabel("Number of Rooms")
+plt.xlabel("Ward")
 plt.ylabel("Price")
 plt.show()
 
