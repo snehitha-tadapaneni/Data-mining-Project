@@ -492,27 +492,6 @@ plt.show()
 #%%
 cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
 
-
-#%%
-grouped_data = cp_data_cleaned.groupby('ward').agg({
-    'price': 'mean',
-    'violent_crime_count': 'sum',
-    'property_crime_count': 'sum'
-}).reset_index()
-
-from pandas.plotting import parallel_coordinates
-
-parallel_data = grouped_data.copy()
-parallel_data['ward'] = parallel_data['ward'].astype(str)  # Parallel coordinates require strings for categories
-plt.figure(figsize=(12, 6))
-parallel_coordinates(parallel_data, 'ward', colormap=plt.cm.viridis)
-plt.title('Parallel Coordinates: Price and Crime Counts by Ward')
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
-
-
-
 #%%
 # Comparing prices based on the crimes in each ward
 grouped_data = cp_data_cleaned.groupby('ward').agg({
