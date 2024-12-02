@@ -489,6 +489,69 @@ plt.show()
 # 2. Property crimes are weakly related to prices, indicating they may not be a strong factor influencing property values in the dataset.<br>
 # 3. The moderate positive correlation between violent and property crimes suggests that crime types are somewhat related in occurrence.<br>
 
+#%%
+cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
+
+
+#%%
+grouped_data = cp_data_cleaned.groupby('ward').agg({
+    'price': 'mean',
+    'violent_crime_count': 'sum',
+    'property_crime_count': 'sum'
+}).reset_index()
+
+from pandas.plotting import parallel_coordinates
+
+parallel_data = grouped_data.copy()
+parallel_data['ward'] = parallel_data['ward'].astype(str)  # Parallel coordinates require strings for categories
+plt.figure(figsize=(12, 6))
+parallel_coordinates(parallel_data, 'ward', colormap=plt.cm.viridis)
+plt.title('Parallel Coordinates: Price and Crime Counts by Ward')
+plt.xticks(rotation=45)
+plt.tight_layout()
+plt.show()
+
+
+
+#%%
+# Comparing prices based on the crimes in each ward
+grouped_data = cp_data_cleaned.groupby('ward').agg({
+    'price': 'mean',
+    'violent_crime_count': 'sum',
+    'property_crime_count': 'sum'
+}).reset_index()
+
+# Set the plotting style
+sns.set_style("whitegrid")
+
+# Initialize the figure with subplots
+fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharex=True)
+
+# First bar plot: Ward vs Price
+sns.barplot(data=grouped_data, x='ward', y='price', ax=axes[0], palette='coolwarm')
+axes[0].set_title('Ward vs Average Price')
+axes[0].set_xlabel('Ward')
+axes[0].set_ylabel('Average Price')
+
+# Second bar plot: Ward vs Crime Counts (stacked with Violent and Property Crimes)
+melted_crime_data = grouped_data.melt(
+    id_vars=['ward'], value_vars=['violent_crime_count', 'property_crime_count'],
+    var_name='Crime Type', value_name='Crime Count'
+)
+sns.barplot(data=melted_crime_data, x='ward', y='Crime Count', hue='Crime Type', ax=axes[1], palette='viridis')
+axes[1].set_title('Ward vs Crime Counts')
+axes[1].set_xlabel('Ward')
+axes[1].set_ylabel('Total Crime Counts')
+axes[1].legend(title='Crime Type')
+
+# Adjust layout
+plt.tight_layout()
+plt.show()
+
+
+
+
+
 
 ########YOUR VISUALIZATIONS AND TESTING HERE################
 
