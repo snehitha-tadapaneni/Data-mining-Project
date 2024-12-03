@@ -429,7 +429,7 @@ print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_other
 # Interpretation: The p-value is also 0.0, which is less than 0.05, so we reject the null hypothesis, indicating a significant monotonic relationship between price and method_KNIFE. This suggests that there is a weak but significant trend of knife-related incidents associated with price changes.
 
 # 3. For method_OTHERS:<br>
-# Interpretation: Since the p-value is 0.976 (which is greater than 0.05), we fail to reject the null hypothesis, indicating no significant monotonic relationship between price and method_OTHERS. This suggests that changes in price do not significantly affect the occurrence of incidents categorized as "Others."
+# Interpretation: Since the p-value is 0.976e, we reject the null hypothesis, indicating a significant monotonic relationship between price and method_OTHERS. This suggests that changes in price does significantly affect the occurrence of incidents categorized as "Others."
 #<br>
 
 
@@ -496,7 +496,7 @@ cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
 #%%
 # Comparing prices based on the crimes in each ward
 grouped_data = cp_data_cleaned.groupby('ward').agg({
-    'price': 'mean',
+    'price': 'median',
     'violent_crime_count': 'sum',
     'property_crime_count': 'sum'
 }).reset_index()
@@ -514,15 +514,15 @@ axes[0].set_xlabel('Ward')
 axes[0].set_ylabel('Average Price')
 
 # Second bar plot: Ward vs Crime Counts (stacked with Violent and Property Crimes)
-melted_crime_data = grouped_data.melt(
-    id_vars=['ward'], value_vars=['violent_crime_count', 'property_crime_count'],
-    var_name='Crime Type', value_name='Crime Count'
-)
-sns.barplot(data=melted_crime_data, x='ward', y='Crime Count', hue='Crime Type', ax=axes[1], palette='viridis')
-axes[1].set_title('Ward vs Crime Counts')
-axes[1].set_xlabel('Ward')
-axes[1].set_ylabel('Total Crime Counts')
-axes[1].legend(title='Crime Type')
+#melted_crime_data = grouped_data.melt(
+#    id_vars=['ward'], value_vars=['violent_crime_count', 'property_crime_count'],
+#    var_name='Crime Type', value_name='Crime Count'
+#)
+#sns.barplot(data=melted_crime_data, x='ward', y='Crime Count', hue='Crime Type', ax=axes[1], palette='viridis')
+#axes[1].set_title('Ward vs Crime Counts')
+#axes[1].set_xlabel('Ward')
+#axes[1].set_ylabel('Total Crime Counts')
+#axes[1].legend(title='Crime Type')
 
 # Adjust layout
 plt.tight_layout()
