@@ -8,7 +8,7 @@ from scipy.stats import spearmanr
 from scipy.stats import f_oneway
 
 
-df = pd.read_csv('/Users/sayam_palrecha/Desktop/VS/DM_code/New code/final_return_new.csv')
+df = pd.read_csv('final_return_new.csv')
 df.describe()
 
 
@@ -177,7 +177,7 @@ print(f"Spearman Correlation for method_GUN: {corr_others}, p-value: {p_others}"
 # Interpretation: Since the p-value is 0.976 (which is greater than 0.05), we fail to reject the null hypothesis, indicating no significant monotonic relationship between price and method_OTHERS. This suggests that changes in price do not significantly affect the occurrence of incidents categorized as "Others."
 #<br> -->
 ## Let us state our hypothesis,<br>
-Null Hypothesis (H₀): There is no monotonic relationship between price and method_GUN, method_KNIFE, method_OTHERS.
+# Null Hypothesis (H₀): There is no monotonic relationship between price and method_GUN, method_KNIFE, method_OTHERS.
 Alternative Hypothesis (H₁): There is a significant monotonic relationship between price and method_GUN, method_KNIFE, method_OTHERS.
 
 1. For method_GUN:<br>
