@@ -491,40 +491,22 @@ plt.show()
 # 3. The moderate positive correlation between violent and property crimes suggests that crime types are somewhat related in occurrence.<br>
 
 #%%
-cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
+#cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
 
-#%%
 # Comparing prices based on the crimes in each ward
 grouped_data = cp_data_cleaned.groupby('ward').agg({
-    'price': 'median',
-    'violent_crime_count': 'sum',
-    'property_crime_count': 'sum'
+    'price': 'median'
 }).reset_index()
 
 # Set the plotting style
 sns.set_style("whitegrid")
 
-# Initialize the figure with subplots
-fig, axes = plt.subplots(1, 2, figsize=(16, 6), sharex=True)
-
-# First bar plot: Ward vs Price
-sns.barplot(data=grouped_data, x='ward', y='price', ax=axes[0], palette='coolwarm')
-axes[0].set_title('Ward vs Average Price')
-axes[0].set_xlabel('Ward')
-axes[0].set_ylabel('Average Price')
-
-# Second bar plot: Ward vs Crime Counts (stacked with Violent and Property Crimes)
-#melted_crime_data = grouped_data.melt(
-#    id_vars=['ward'], value_vars=['violent_crime_count', 'property_crime_count'],
-#    var_name='Crime Type', value_name='Crime Count'
-#)
-#sns.barplot(data=melted_crime_data, x='ward', y='Crime Count', hue='Crime Type', ax=axes[1], palette='viridis')
-#axes[1].set_title('Ward vs Crime Counts')
-#axes[1].set_xlabel('Ward')
-#axes[1].set_ylabel('Total Crime Counts')
-#axes[1].legend(title='Crime Type')
-
-# Adjust layout
+# Create a bar plot: Ward vs Price
+plt.figure(figsize=(10, 6))
+sns.barplot(data=grouped_data, x='ward', y='price', palette='coolwarm')
+plt.title('Ward vs Median Price')
+plt.xlabel('Ward')
+plt.ylabel('Median Price')
 plt.tight_layout()
 plt.show()
 
@@ -534,6 +516,153 @@ plt.show()
 
 
 ########YOUR VISUALIZATIONS AND TESTING HERE################
+
+
+
+
+#%%[Markdown]
+## Modelling Techniques
+
+#### Smart Question 1: For regression
+
+##### Light GBM
+
+
+
+
+
+
+##### Random Forest Regressor
+
+
+
+#%%[Markdown]
+#### Smart Question 2: For Classification
+
+##### Random Forest Classifier
+
+#%%
+from sklearn.model_selection import train_test_split
+
+cp_data_cleaned['price_category'] = pd.qcut(cp_data['price'], q=3, labels=[0, 1, 2])
+
+X = cp_data_cleaned.drop(columns=['price_category', 'price', 'offense_arson', 'offense_assault w/dangerous weapon',
+       'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft',
+       'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto',
+       'offense_theft/other'])
+
+y = cp_data_cleaned['price_category']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+
+#%%
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+
+rf = RandomForestClassifier(random_state=42, max_depth=20, max_features='sqrt', min_samples_leaf=2, n_estimators=100, min_samples_split=15)
+rf.fit(X_train, y_train)
+
+# Predictions
+y_pred = rf.predict(X_test)
+
+# Evaluate
+accuracy = rf.score(X_test, y_pred)
+print(f"Accuracy: {accuracy:.2f}")
+
+# Confusion Matrix
+conf_matrix = confusion_matrix(y_test, y_pred)
+print("\nConfusion Matrix:")
+print(conf_matrix)
+
+# Plotting the Confusion Matrix
+plt.figure(figsize=(8, 6))
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=rf.classes_, yticklabels=rf.classes_)
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# Classification Report
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+
+#%%
+# Feature importance
+
+# Get feature importance
+feature_importance = rf.feature_importances_
+
+# Create a DataFrame for better visualization
+features = X.columns
+importance_df = pd.DataFrame({'Feature': features, 'Importance': feature_importance}).sort_values(by='Importance', ascending=False)
+
+# Plot feature importance
+plt.figure(figsize=(10, 6))
+plt.barh(importance_df['Feature'], importance_df['Importance'], color='skyblue')
+plt.xlabel('Importance')
+plt.ylabel('Feature')
+plt.title('Feature Importance in Random Forest')
+plt.gca().invert_yaxis()  # Reverse the order for readability
+plt.show()
+
+#%%
+# Hyperparameter tuning
+from sklearn.model_selection import GridSearchCV
+
+# Define parameter grid
+param_grid = {
+    'n_estimators': [50, 100, 200, 300, 400],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10, 15],
+    'min_samples_leaf': [1, 2, 4, 8],
+    'max_features': ['auto', 'sqrt', 'log2']
+}
+
+# Perform Grid Search
+grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), 
+                           param_grid=param_grid, 
+                           cv=5,  # 5-fold cross-validation
+                           scoring='accuracy', 
+                           n_jobs=-1, 
+                           verbose=2)
+
+grid_search.fit(X_train, y_train)
+
+# Get the best parameters and accuracy
+best_params = grid_search.best_params_
+best_score = grid_search.best_score_
+print(f"Best Parameters: {best_params}")
+print(f"Best Cross-Validation Accuracy: {best_score:.2f}")
+
+#%%
+# Cross validation
+from sklearn.model_selection import cross_val_score, KFold
+
+kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Perform cross-validation
+cv_scores = cross_val_score(rf, X, y, cv=kfold, scoring='accuracy')
+
+# Display the results
+print(f"Cross-validation accuracy scores: {cv_scores}")
+
+#%%[markdown]
+# Feature Importance:
+# By looking at the Feature Importance values, median_gross_income plays a dominant role in determining housing price tiers, while crime rates have a noticeable but secondary impact.
+# This analysis highlights that neighborhood income levels are the most crucial factor for classifying housing prices, which aligns with socioeconomic expectations.
+
+# Model Evaluation Interpretation:
+# The model achieved an accuracy of 79%, meaning it correctly classified 79% of the neighborhoods into the three housing price tiers (low, medium, high).
+# The model performs best for the low and high price tiers (Classes 0 and 2), with slightly lower performance for the medium price tier (Class 1). Overall, the model demonstrates reliable and balanced predictions across the three tiers.
+
+##### XG Boost
+
+
+
+
+
+
 
 
 
