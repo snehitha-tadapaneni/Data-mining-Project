@@ -309,19 +309,19 @@ plt.show()
 # <br>
 # Correlation heatmap for all Numerical Variables
 # %%
-# Heatmap to understand relationship bw price and other variables
-# Selected only numerical columns
-numerical_cols = cp_data_cleaned.select_dtypes(include=['float64', 'int64']).columns
-numerical_df = cp_data_cleaned[numerical_cols]
-
-# Compute the correlation matrix
-corr = numerical_df.corr()
+# Heatmap to understand relationship between price and other numerical variables to plot a heatmap and understand the correlation of the features with the target variables
 
 # Plot the heatmap
-plt.figure(figsize=(12, 8))
-sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
-plt.title('Correlation Heatmap')
-plt.show()
+def plot_heatmap(df):
+    # Selected only numerical features from the dataset
+    numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns
+    numerical_df = df[numerical_cols]
+    # Compute the correlation matrix for the numerical features 
+    corr = numerical_df.corr()
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+    plt.title('Correlation Heatmap')
+    plt.show()
 #%%[markdown]
 # *Price Correlations Obervations*:
 # <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices. Also, price has a positive correlation with median gross income of the households.
@@ -333,40 +333,46 @@ plt.show()
 # Plot for Price vs rooms, bathrooms, kitchens
 #%%
 # Prices vs rooms
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='rooms', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of Rooms")
-plt.xlabel("Number of Rooms")
-plt.ylabel("Price")
-plt.show()
+def plot_price_room(df,cols_name,price):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
+    plt.title("Housing Prices Based on Number of Rooms")
+    plt.xlabel("Number of Rooms")
+    plt.ylabel("Price")
+    plt.show()
 
+plot_price_room(df1,'rooms','price')
 # %%
 # Prices vs bathrooms
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='bathrm', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of Bathrooms")
-plt.xlabel("Number of Bathrooms")
-plt.ylabel("Price")
-plt.show()
+def plot_price_bathrooms(df,cols_name,price):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
+    plt.title("Housing Prices Based on Number of Bathrooms")
+    plt.xlabel("Number of Bathrooms")
+    plt.ylabel("Price")
+    plt.show()
+
 
 
 #%%
 # Prices vs bed room
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='bedrm', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of Bed Rooms")
-plt.xlabel("Number of Rooms")
-plt.ylabel("Price")
-plt.show()
+def plot_price_bedrooms(df,cols_name,price):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
+    plt.title("Housing Prices Based on Number of Bed Rooms")
+    plt.xlabel("Number of Rooms")
+    plt.ylabel("Price")
+    plt.show()
 
 #%%
 # Prices vs ward
-plt.figure(figsize=(10, 6))
-sns.barplot(x='ward', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of ward")
-plt.xlabel("Ward")
-plt.ylabel("Price")
-plt.show()
+def plot_price_ward(df,cols_name,price):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
+    plt.title("Housing Prices Based on Number of ward")
+    plt.xlabel("Ward")
+    plt.ylabel("Price")
+    plt.show()
 
 
 #%%[markdown]
@@ -443,15 +449,20 @@ cp_data_cleaned['violent_crime_count'] = cp_data_cleaned[['offense_assault w/dan
 cp_data_cleaned['property_crime_count'] = cp_data_cleaned[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
 
 # Scatter plot for crimes vs price
-plt.figure(figsize=(10, 6))
-plt.scatter(cp_data_cleaned['violent_crime_count'], cp_data_cleaned['price'], color='red', alpha=0.6, label='Violent Crimes')
-plt.scatter(cp_data_cleaned['property_crime_count'], cp_data_cleaned['price'], color='blue', alpha=0.6, label='Property Crimes')
-plt.title('Scatter Plot: Violent and Property Crimes vs Price')
-plt.xlabel('Crime Count')
-plt.ylabel('Price')
-plt.legend()
-plt.grid(alpha=0.5)
-plt.show()
+def plot_crime_price(df,):
+    df['violent_crime_count'] = df[['offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery', 'offense_sex abuse']].sum(axis=1)
+
+    df['property_crime_count'] = df[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
+
+    plt.figure(figsize=(10, 6))
+    plt.scatter(df['violent_crime_count'], df['price'], color='red', alpha=0.6, label='Violent Crimes')
+    plt.scatter(df['property_crime_count'], df['price'], color='blue', alpha=0.6, label='Property Crimes')
+    plt.title('Scatter Plot: Violent and Property Crimes vs Price')
+    plt.xlabel('Crime Count')
+    plt.ylabel('Price')
+    plt.legend()
+    plt.grid(alpha=0.5)
+    plt.show()
 
 #%%[markdown]
 # As, we can see the above scatter plot is too complex to understand.
@@ -466,25 +477,32 @@ tract_data = cp_data_cleaned.groupby('census_tract').agg({
 }).reset_index()
 
 # Scatter plot for aggregated crime counts vs average price
-plt.figure(figsize=(10, 6))
-plt.scatter(tract_data['violent_crime_count'], tract_data['price'], color='red', alpha=0.6, label='Violent Crimes')
-plt.scatter(tract_data['property_crime_count'], tract_data['price'], color='blue', alpha=0.6, label='Property Crimes')
-plt.title('Crime Counts vs Average Price by Census Tract')
-plt.xlabel('Aggregated Crime Count')
-plt.ylabel('Average Price ($)')
-plt.legend()
-plt.grid(alpha=0.5)
-plt.show()
+def aggcrime_price(df):
+    tract_data = cp_data_cleaned.groupby('census_tract').agg({
+    'violent_crime_count': 'sum',
+    'property_crime_count': 'sum',
+    'price': 'mean'}).reset_index()
+    plt.figure(figsize=(10, 6))
+    plt.scatter(tract_data['violent_crime_count'], tract_data['price'], color='red', alpha=0.6, label='Violent Crimes')
+    plt.scatter(tract_data['property_crime_count'], tract_data['price'], color='blue', alpha=0.6, label='Property Crimes')
+    plt.title('Crime Counts vs Average Price by Census Tract')
+    plt.xlabel('Aggregated Crime Count')
+    plt.ylabel('Average Price ($)')
+    plt.legend()
+    plt.grid(alpha=0.5)
+    plt.show()
 
 #%%
 # Compute correlation coefficients: Price vs violent crime vs property crime
 correlation_matrix = cp_data_cleaned[['price', 'violent_crime_count', 'property_crime_count']].corr()
 
 # Display correlation matrix
-plt.figure(figsize=(8, 6))
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-plt.title('Correlation Matrix: Price vs Crime Counts')
-plt.show()
+def corr_plot(df):
+    correlation_matrix = df[['price', 'violent_crime_count', 'property_crime_count']].corr()
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+    plt.title('Correlation Matrix: Price vs Crime Counts')
+    plt.show()
 #%%[markdown]
 # From the above heatmap between Violent Crime, Prperty Crime and Price values, we can say:<br>
 # 1. Violent crime has a stronger and negative impact on property prices compared to property crimes.<br>
@@ -494,22 +512,20 @@ plt.show()
 #%%
 #cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
 
-# Comparing prices based on the crimes in each ward
-grouped_data = cp_data_cleaned.groupby('ward').agg({
-    'price': 'median'
-}).reset_index()
-
-# Set the plotting style
-sns.set_style("whitegrid")
-
 # Create a bar plot: Ward vs Price
-plt.figure(figsize=(10, 6))
-sns.barplot(data=grouped_data, x='ward', y='price', palette='coolwarm')
-plt.title('Ward vs Median Price')
-plt.xlabel('Ward')
-plt.ylabel('Median Price')
-plt.tight_layout()
-plt.show()
+def barplot_ward_price(df):
+    grouped_data = df.groupby('ward').agg({
+    'price': 'median'}).reset_index()
+
+    # Set the plotting style
+    sns.set_style("whitegrid")
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=grouped_data, x=df['ward'], y=df['price'], palette='coolwarm')
+    plt.title('Ward vs Median Price')
+    plt.xlabel('Ward')
+    plt.ylabel('Median Price')
+    plt.tight_layout()
+    plt.show()
 
 
 
