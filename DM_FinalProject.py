@@ -782,3 +782,72 @@ plt.show()
 # plt.suptitle('Property Value Decomposition')
 # plt.show()
 # %%
+
+
+# Regression problem model 2 
+
+# RANDOM FOREST REGRESSOR 
+
+from sklearn.model_selection import train_test_split,GridSearchCV
+import numpy as np
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+
+X = df1[['bathrm','rooms', 'bedrm','median_gross_income',
+       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
+       'method_gun', 'method_knife', 'method_others', 'shift_day',
+       'shift_evening', 'shift_midnight']]
+y = df1['price']
+X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
+model = RandomForestRegressor(random_state=42)
+model.fit(X_train,y_train)
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test,y_pred)
+r2 = r2_score(y_test,y_pred)
+
+#%%
+print(f"Test MSE: {mse}")
+print(f"Test RMSE: {np.sqrt(mse)}")
+print(f"Test R2 Score: {r2}")
+feature_importance = pd.DataFrame({
+    'features':X.columns,
+    'importance' : model.feature_importances_
+}).sort_values('importance', ascending=True)
+
+#%%
+
+print("Features Importance")
+print(feature_importance.sort_values('importance',ascending=False))
+from sklearn.model_selection import cross_val_score
+
+cv_scores_r2 = cross_val_score(model,X,y,cv=5,scoring='r2')
+cv_scores_rmse = cross_val_score(model,X,y,scoring='neg_mean_squared_error')
+rmse_scores = np.sqrt(-cv_scores_rmse)
+from scipy import stats
+
+def qq(residual):
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(111)
+    stats.probplot(residual, dist="norm", plot=ax)
+    ax.set_title('QQ Plot')
+    plt.show()
+
+#%%
+
+residual = y_test - y_pred
+
+qq(residual)
+feature_importance = feature_importance.sort_values
+plt.figure(figsize=(10, 6))
+plt.barh(feature_importance['features'], feature_importance['importance'])
+plt.title('Random Forest Feature Importance')
+plt.xlabel('Importance')
+plt.ylabel('Features')
+
+# Add grid for better readability
+plt.grid(True, axis='x', linestyle='--', alpha=0.6)
+
+# Tight layout to prevent label cutoff
+plt.tight_layout()
+
+plt.show()
