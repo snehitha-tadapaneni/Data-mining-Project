@@ -244,12 +244,13 @@ plt.suptitle('Distributions of Numerical Features')
 plt.show()
 
 # Analysing the target variable - plotting a distribution to understand price
-plt.figure(figsize=(10, 6))
-sns.histplot(cp_data['price'], kde=True)
-plt.title("Distribution of Housing Prices")
-plt.xlabel("Price")
-plt.ylabel("Frequency")
-plt.show()
+def plot_target_variable(df,cols_name):
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df['cols_name'], kde=True)
+    plt.title("Distribution of Housing Prices")
+    plt.xlabel("Price")
+    plt.ylabel("Frequency")
+    plt.show()
 
 # %%[markdown]
 # As the price distribution is highly skewed, lets look at the outliers in the target variable.
