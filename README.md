@@ -17,7 +17,8 @@ the house_price18.csv dataset is the cleaned dataset
 
 DC Crime Rate: https://opendata.dc.gov/datasets/c5a9f33ffca546babbd91de1969e742d_6/explore?location=38.903935%2C-77.012050%2C10.79
 
-Merged dataset is named as final_data18.csv
+Merged dataset is named as final_return_new.csv
+Link to the data : https://drive.google.com/file/d/1i8ANBUP_x9Mtvbmnt3jOKkgVc248LhvS/view?usp=sharing
 
 Github repository link
 https://github.com/snehitha-tadapaneni/Data-mining-Project 
