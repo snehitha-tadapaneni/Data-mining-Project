@@ -1,7 +1,7 @@
 # Data-mining-Project
 ## Course - DATS_6103_Introduction_to_Data_Mining
 
-## TOPIC: Analysing the impact of Neighborhood crime rates on residential property in Washington DC between the years 2020 - 2024
+## TOPIC: Analysing the impact of Neighborhood crime rates on residential property in Washington DC between the years 2014-2018
 
 To what extent do neighborhood crime rates correlate with residential property values across Washington DC between 2020-2024, using the combined analysis of the Housing Price dataset and opendata crime dataset.
 
