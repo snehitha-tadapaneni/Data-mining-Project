@@ -217,10 +217,6 @@ print(cp_data.info())
 # Renaming the columns, all to lower cases
 cp_data.columns = cp_data.columns.str.lower()
 
-cp_data.isna().sum()
-
-cp_data.head()
-
 #%%
 # Drop the 'sale_year' column
 # we will also drop the 'total_gross_column' as we can rely on the median income values for our analysis
@@ -228,10 +224,6 @@ cp_data = cp_data.drop(columns=['saledate', 'start_year', 'unnamed: 0', 'total_g
 
 # Rename the 'saledate' column to 'year'
 cp_data = cp_data.rename(columns={'saleyear': 'year'})
-
-#%%
-# Convert all the float to int
-#######################Add ur code here if u any
 
 #%%
 # Converting ward object type to int
@@ -245,13 +237,23 @@ print(cp_data.columns)
 
 #%%[markdown]
 # Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
-
-#
-
 ## Data Visualization: Univariate Analysis
 # <br>
+# Descriptive Statistics for all numeric features 
+numerical_cols = cp_data.select_dtypes(include=['float64', 'int64']).columns
+numerical_df = cp_data[numerical_cols]
+numerical_df.describe()
+
+# From the descriptive statistic, we can onserve that there are some abnormal values in fireplaces.
+# Let's look at counts of unique number of fireplaces
+
+cp_data['fireplaces'].value_counts()
+
+# Since having 200 and more fireplaces in a property seem unlikely; therefore, we will drop those observations with unusal number of fireplaces.
+cp_data = cp_data[cp_data['fireplaces'] <=11]
+
+#%%
 # Distribution for all numerical features and the target variable
-# %%
 # Histograms for numerical features
 num_cols = ['bathrm', 'rooms', 'fireplaces', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
 
@@ -305,25 +307,12 @@ cp_data_cleaned = cp_data_cleaned[(cp_data_cleaned['price'] >= lower) & (cp_data
 print("New Shape: ", cp_data_cleaned.shape)
 cp_data_cleaned.info()
 #%%
-# Frequency of each method type: Plot for price vs method types
-methods = ['method_gun', 'method_knife', 'method_others']
-method_sums = cp_data_cleaned[methods].sum()
-    
-plt.figure(figsize=(8, 6))
-method_sums.plot(kind='bar', color=['skyblue', 'orange', 'green'], alpha=0.8)
-plt.title('Frequency of Each Method Type', fontsize=14)
-plt.xlabel('Method Type', fontsize=12)
-plt.ylabel('Frequency', fontsize=12)
-plt.xticks(rotation=0)
-plt.show()
-
 # Distribution of price after removing the outliers
 histplot_target_variable(cp_data_cleaned, 'price')
 #%%[markdown]
 # The price distribution(after removing the outliers) appears to follow a slightly right-skewed distribution (positive skewness).
 # This tells us that the majority of prices are concentrated towards the lower and middle ranges, while fewer higher prices create a longer tail on the right. Normalizing or scaling the data would be required!
 
-#
 #%%[markdown]
 ## Data Visualization: Bivariate Analysis
 # <br>
@@ -343,6 +332,7 @@ def plot_heatmap(df):
     plt.title('Correlation Heatmap')
     plt.show()
 
+plot_heatmap(cp_data_cleaned)
 #%%[markdown]
 # *Price Correlations Obervations*:
 # <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices. Also, price has a positive correlation with median gross income of the households.
