@@ -42,6 +42,7 @@ import lightgbm as lgb
 import warnings
 warnings.filterwarnings('ignore')
 
+
 #%%[markdown]
 ## Data Preparation
 # We have merged and aggregated both datasets based on `census_tract` and offense counts. 
@@ -340,9 +341,9 @@ def plot_heatmap(df):
 
 # Plot for Price vs Property Attributes (bathrooms, rooms, bedrooms, fireprices)
 #%%
-def make_boxplot(df,cols_name,price,attribute_name):
+def make_boxplot(df,x_var,y_var,attribute_name):
     plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df[cols_name], y=df[price], data=df)
+    sns.boxplot(x=df[x_var], y=df[y_var], data=df)
     plt.title("Housing Prices Based on " + attribute_name)
     plt.xlabel(attribute_name)
     plt.ylabel("Price")
@@ -361,6 +362,7 @@ make_boxplot(cp_data_cleaned,'bedrm','price', 'Number of Bedrooms')
 # Prices vs Fireplaces
 make_boxplot(cp_data_cleaned,'fireplaces','price', 'Number of Fireplaces')
 
+#%%
 # Prices vs rooms
 def plot_price_room(df,cols_name,price):
     plt.figure(figsize=(10, 6))
@@ -370,7 +372,7 @@ def plot_price_room(df,cols_name,price):
     plt.ylabel("Price")
     plt.show()
 
-plot_price_room(cp_data_cleaned,'rooms','price')
+plot_price_room(df1,'rooms','price')
 # %%
 # Prices vs bathrooms
 def plot_price_bathrooms(df,cols_name,price):
@@ -463,19 +465,11 @@ make_map(ward_house, ward_map, 'ward', 'price_median')
 
 # Data visualization on time variation of housing price by year
 
-# Boxplot 
-
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='year', y='price', data=cp_data_cleaned)
-plt.title("Boxplot of Housing Prices by Year")
-plt.xlabel("Year")
-plt.ylabel("Housing Price")
-plt.show()
+make_boxplot(cp_data_cleaned,'year','price', 'Year')
 
 # Line plot
 yr_median = cp_data_cleaned.groupby('year')['price'].median().reset_index()
 yr_median
-
 
 plt.figure(figsize=(10, 6))
 sns.lineplot(x='year', y='price', data=yr_median)
@@ -483,17 +477,21 @@ plt.title("Yearly Trend of Median Housing Price")
 plt.show()
 
 #%% [markdown]
-# Looking at the boxplot we do not observe clear difference of housing price distirbution between different year.
-# However, there's a clear yearly trend in the median housing price.
+# The boxplot shows that while the overall distribution of housing prices appears similar across different years. 
+# Despite the similarity in distribution, the median housing prices (likely represented by the central line in each box) display a noticeable trend over the years. 
 
 #%% [markdown]
 ### Crime Related Features vs Housing Price
-#
-# 
 #### Housing Price vs Total Crime Counts
-# 
 # Now we will visualize how tract level total crime counts can affect property price.
 #
+# Calculate the total crime counts
+cp_data_cleaned['total_crime_count'] = cp_data_cleaned[
+    ['offense_assault w/dangerous weapon', 'offense_homicide', 
+     'offense_robbery', 'offense_sex abuse', 'offense_arson',
+    'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 
+    'offense_theft/other']].sum(axis=1)
+
 # Scatter plot for total crimes vs price
 plt.figure(figsize=(10, 6))
 plt.scatter(cp_data_cleaned['total_crime_count'], cp_data_cleaned['price'], alpha=0.6)
@@ -506,18 +504,10 @@ plt.show()
 
 #%% [markdown]
 # In scatter plot, we cannot observe a clear patterns between total crime counts and price.
-# To further investigate, we will visualize the distribution of crimes and property values by census tract on a map. 
+# To further investigate, we will visualize the distribution of crimes and property values by census tract on map. 
 # This will allow us to explore whether neighborhoods with higher crime occurrences tend to have lower property values.
 
-
 #%%
-
-# Calculate the total crime counts
-cp_data_cleaned['total_crime_count'] = cp_data_cleaned[
-    ['offense_assault w/dangerous weapon', 'offense_homicide', 
-     'offense_robbery', 'offense_sex abuse', 'offense_arson',
-    'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 
-    'offense_theft/other']].sum(axis=1)
 
 # Aggregate the total crime counts for each neighborhood
 tract_crime = cp_data_cleaned[
@@ -696,8 +686,6 @@ def barplot_ward_price(df):
 
 
 
-
-
 #%%[Markdown]
 ## Modelling Techniques
 
@@ -714,29 +702,27 @@ def barplot_ward_price(df):
 
 ### Total Crime Counts ####
 
-# Control for the physical features (`bathrm`, `rooms`, `bedrm`, `fireplaces`),
-# location (`ward`), time (`year`), socioeconomic factor (`median_gross_income`)
+# Define features
 controls = ['bathrm', 'rooms', 'bedrm', 'fireplaces', 'year', 'ward', 'median_gross_income']
 total = ['total_crime_count']
-
 features = controls + total
 
 X = cp_data_cleaned[features]
 y = cp_data_cleaned['price']
 
-# Replace spaces with underscores in column names for consistency
+# Clean up column names
 X.columns = X.columns.str.replace(' ', '_')
 
-
+# Define categorical features and convert their data types to 'category'
 cat_features = ['ward']
 X[cat_features] = X[cat_features].astype('category')
 
-# Split into training, validation, test sets
+# Split into training and test sets
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )  
 
-#Define initial model parameters
+# Define initial model parameters
 initial_params = {
     'objective': 'regression',
     'metric': 'rmse',
@@ -744,16 +730,15 @@ initial_params = {
     'random_state': 42
 }
 
-# Initialize the LGBMRegressor with the specified parameters
+# Initialize LGBMRegressor
 model = LGBMRegressor(**initial_params)
 
-# Fit the model with early stopping
+# Fit the model
 model.fit(
     X_train, y_train,
     eval_metric='rmse',
     categorical_feature=cat_features
 )
-
 
 # Test RMSE and R2
 y_test_pred = model.predict(X_test, num_iteration=model.best_iteration_)
@@ -762,10 +747,10 @@ test_r2 = r2_score(y_test, y_test_pred)
 print(f'Initial Test RMSE: {test_rmse:.4f}')
 print(f'Initial Test R²: {test_r2:.4f}')
 
-
 #%% 
 ######### Hyperparameter Tuning ################# 
 
+# Define parameter search space
 param_grid = {
     'learning_rate': [0.03, 0.05, 0.07],
     'num_leaves': [20, 27, 31],
@@ -774,6 +759,7 @@ param_grid = {
     'reg_lambda': [0, 0.1, 0.3]
 }
 
+# Initialize LGBMRegressor
 lgbm = LGBMRegressor(
     objective='regression',
     metric='rmse',
@@ -782,9 +768,10 @@ lgbm = LGBMRegressor(
     random_state=42
 )
 
+# Initialize a KFold cross-validator
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
-# Initialize GridSearchCV with cross-validation
+# Initialize GridSearchCV
 grid_search = GridSearchCV(
     estimator=lgbm,
     param_grid=param_grid,
@@ -794,20 +781,18 @@ grid_search = GridSearchCV(
     n_jobs=1
 )
 
+# Perform Grid Search
 grid_search.fit(X_train, y_train,categorical_feature=cat_features)
 
 # Extract the best parameters and best CV RMSE
 best_params = grid_search.best_params_
 best_rmse = -grid_search.best_score_
-print('Best Parameters found by GridSearchCV:', best_params)
+print('Best Parameters:', best_params)
 print(f'Best CV RMSE: {best_rmse:.4f}')
 
-# Fitting 5 folds for each of 243 candidates, totalling 1215 fits
-# Best Parameters found by GridSearchCV: {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
-# Best CV RMSE: 134926.1966
 #%%
 
-#best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
+# best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
 
 model_params = {
     'objective': 'regression',
@@ -817,6 +802,7 @@ model_params = {
     'random_state': 42,
     **best_params
 }
+
 
 lgbm_cv = LGBMRegressor(**model_params)
 
@@ -831,10 +817,10 @@ cv_scores_best = cross_validate(
     fit_params={'categorical_feature': cat_features}
 )
 
-
+# Initialize the final model with the best parameters
 final_model = LGBMRegressor(**model_params)
 
-
+# Fit the final model on training data
 final_model.fit(
     X_train, y_train,
     eval_metric='rmse',
@@ -844,7 +830,7 @@ final_model.fit(
 
 ####### Final Model Evaluation ############
 
-# Calculate Test Data RMSE and R2
+# Calculate Test RMSE and R2
 y_test_pred = final_model.predict(X_test, num_iteration=final_model.best_iteration_)
 test_rmse = mean_squared_error(y_test, y_test_pred, squared=False)
 test_r2 = r2_score(y_test, y_test_pred)
@@ -892,11 +878,10 @@ plt.show()
 
 #### All Featrues ###
 
-offenses = ['violent_crime_count', 'property_crime_count']
-methods = ['method_gun', 'method_knife', 'method_others']
-shifts = ['shift_day', 'shift_midnight', 'shift_evening']
-
-features = controls+offenses+methods+shifts
+# Define features
+features = ['violent_crime_count', 'property_crime_count',
+            'method_gun', 'method_knife', 'method_others',
+            'shift_day', 'shift_midnight', 'shift_evening']
 
 
 X = cp_data_cleaned[features]
@@ -909,12 +894,12 @@ X.columns = X.columns.str.replace(' ', '_')
 cat_features = ['ward']
 X[cat_features] = X[cat_features].astype('category')
 
-# Split into training, validation, test sets
+# Split into training and test sets
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )  
 
-
+# Initialize inital parameters
 initial_params = {
     'objective': 'regression',
     'metric': 'rmse',
@@ -923,23 +908,26 @@ initial_params = {
 
 initial_model = LGBMRegressor(**initial_params)
 
+# Fit initial model on training data
 initial_model.fit(
     X_train, y_train,
     categorical_feature=cat_features,
     eval_metric='rmse'
 )
 
-
+# Calculate Test Data RMSE and R2
 y_test_pred_initial = initial_model.predict(X_test, num_iteration=initial_model.best_iteration_)
 test_rmse_initial = mean_squared_error(y_test, y_test_pred_initial, squared=False)
 test_r2_initial = r2_score(y_test, y_test_pred_initial)
 
+# Print out results
 print(f"Initial Model Test RMSE: {test_rmse_initial:.4f}")
 print(f"Initial Model Test R²: {test_r2_initial:.4f}")
 
 #%% 
 ########## Hyperparameter Tuning ################
 
+# Define parameter search space
 param_grid = {
     'learning_rate': [0.01, 0.05, 0.07, 0.1],
     'num_leaves': [20, 31, 62],
@@ -948,6 +936,7 @@ param_grid = {
     'reg_lambda': [0, 0.1, 0.5]
 }
 
+# Initialize LGBMRegressor
 lgbm = LGBMRegressor(
     objective='regression',
     metric='rmse',
@@ -958,6 +947,7 @@ lgbm = LGBMRegressor(
 
 )
 
+# Initialize kFold cross validation
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
 # Initialize GridSearchCV with cross-validation
@@ -970,18 +960,17 @@ grid_search = GridSearchCV(
     n_jobs=1
 )
 
+# Perform grid search to find the best parameters
 grid_search.fit(X_train, y_train, categorical_feature=cat_features)
 
 # Extract the best parameters and best CV RMSE
 best_params = grid_search.best_params_
 best_rmse = -grid_search.best_score_
-print('Best Parameters found by GridSearchCV:', best_params)
+print('Best Parameters: ', best_params)
 print(f'Best CV RMSE: {best_rmse:.4f}')
 
-# Best Parameters found by GridSearchCV: {'learning_rate': 0.1, 'max_depth': 15, 'num_leaves': 62, 'reg_alpha': 0.5, 'reg_lambda': 0.1}
-# Best CV RMSE: 132909.6492
 #%%
-best_params =  {'learning_rate': 0.1, 'max_depth': 15, 'num_leaves': 62, 'reg_alpha': 0.5, 'reg_lambda': 0.1}
+#best_params =  {'learning_rate': 0.1, 'max_depth': 15, 'num_leaves': 62, 'reg_alpha': 0.5, 'reg_lambda': 0.1}
 
 model_params ={
     'objective': 'regression',
@@ -992,9 +981,21 @@ model_params ={
     **best_params}
 
 
+# Initialize the final model with the best parameters
+final_model = LGBMRegressor(**model_params)
+
+
+# Fit the final model
+final_model.fit(
+    X_train, y_train,
+    eval_metric='rmse',
+    categorical_feature = X_train.columns.get_loc('ward')
+)
+
 # Initialize cross validation
 lgbm_cv = LGBMRegressor(**model_params)
 
+# Perform cross-validation 
 cv_scores_best = cross_validate(
     lgbm_cv, 
     X_train,
@@ -1006,19 +1007,7 @@ cv_scores_best = cross_validate(
     fit_params={'categorical_feature': cat_features}
 )
 
-# Initialize the final model with the best parameters
-final_model = LGBMRegressor(**model_params)
-
-
-# Fit model on training data set
-final_model.fit(
-    X_train, y_train,
-    eval_metric='rmse',
-    categorical_feature = X_train.columns.get_loc('ward')
-)
-
-######### Final Model #############
-
+######### Final Model Evaluation #############
 
 # Calculate Test Data RMSE and R2
 y_test_pred = final_model.predict(X_test, num_iteration=final_model.best_iteration_)
@@ -1029,11 +1018,12 @@ test_r2 = r2_score(y_test, y_test_pred)
 cv_rmse_best = -cv_scores_best['test_neg_root_mean_squared_error']
 cv_r2_best = cv_scores_best['test_r2']
 
+# Print out results
 print(f'Final Model Test RMSE: {test_rmse:.4f}')
 print(f'Final Model Test R²: {test_r2:.4f}\n')
 
-print(f'Average Cross-Validation RMSE (Best Params): {cv_rmse_best.mean():.4f}')
-print(f'Average Cross-Validation R² (Best Params): {cv_r2_best.mean():.4f}')
+print(f'Average Cross-Validation RMSE: {cv_rmse_best.mean():.4f}')
+print(f'Average Cross-Validation R²: {cv_r2_best.mean():.4f}')
 
 # Actual vs. Predicted Values Plot 
 plt.scatter(y_test, y_test_pred, alpha=0.5)
@@ -1063,7 +1053,22 @@ plt.show()
 lgb.plot_importance(final_model, importance_type="split", figsize=(7,6), title="LightGBM Feature Importance (Split)")
 plt.show()
 
+#%% [markdown]
+# __Model Evaluation__: <br>
+# Comparing R2 and RMSE, the model with detailed crime features (R2 = 75.62%, RMSE = 138894.19) shows a marginal improvement over the model with only total crime counts (R2 = 76.22%, RMSE = 137162.89). 
+# However, both models perform similarly, as seen in the actual vs. predicted plots, where predictions align closely with the ideal line. 
+# Both models exhibit slightly greater variance at the higher end of property prices, with the detailed model showing slightly better alignment overall.
+# 
+# __Feature Importance__: <br>
+# Across both models, features like median gross income and ward consistently rank high in both split and gain importance. 
+# This highlights their strong predictive power and confirms that these factors are key determinants of residential property values.
+# Property-specific attributes such as bathrooms, bedrooms, and fireplaces further reinforce the dominance of these variables over crime-related data in predicting housing prices.
+#
+# __Insights__:  <br>
+# From the model performance and feature importance, property attributes and socioeconomic factors are the strongest determinants of residential property values in Washington, DC.
+# While crime does influence property prices, its impact is modest compared to these primary factors.
 
+#%%
 
 ##### Random Forest Regressor
 
