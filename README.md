@@ -96,6 +96,7 @@ Post Outlier removal:
 <img width="657" alt="Screenshot 2024-12-05 at 10 46 00 PM" src="https://github.com/user-attachments/assets/84a68272-a75a-4465-8027-040094b87116">
 
 Above steps help any user to begin with the project get teh datset remove null and outlier values
+Below is the list of models used the user can go ahead and download the specific libraries and dependancies then run the models to get similar output or fine tune to work on custom data
 
 ## Regression Models:
 - LightGradient Boosting
