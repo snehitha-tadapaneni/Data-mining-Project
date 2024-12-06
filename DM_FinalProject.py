@@ -248,26 +248,36 @@ print(cp_data.columns)
 # %%
 # Histograms for numerical features
 num_cols = ['bathrm', 'rooms', 'fireplaces', 'bedrm', 'year', 'ward', 'median_gross_income', 'offense_arson', 'offense_assault w/dangerous weapon', 'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft', 'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto', 'offense_theft/other', 'method_gun', 'method_knife', 'method_others', 'shift_day', 'shift_evening', 'shift_midnight']
-cp_data[num_cols].hist(figsize=(10, 12), layout=(6, 4), edgecolor='black')
-plt.suptitle('Distributions of Numerical Features')
-plt.show()
 
-# Analysing the target variable - plotting a distribution to understand price
-def plot_target_variable(df,cols_name):
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df['cols_name'], kde=True)
-    plt.title("Distribution of Housing Prices")
-    plt.xlabel("Price")
-    plt.ylabel("Frequency")
+def make_histplot_grid(df, col_names):
+    df[col_names].hist(figsize=(10, 12), layout=(6, 4), edgecolor='black')
+    plt.suptitle('Distributions of Numerical Features')
     plt.show()
 
+make_histplot_grid(cp_data, num_cols)
+
+
+# Analysing the target variable - plotting a distribution to understand price
+def histplot_target_variable(df,cols_name):
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df[cols_name], kde=True, color='purple')
+    plt.title("Distribution of Housing Prices", fontsize=14)
+    plt.xlabel("Price", fontsize=12)
+    plt.ylabel("Frequency", fontsize=12)
+    plt.show()
+
+histplot_target_variable(cp_data, 'price')
 # %%[markdown]
 # As the price distribution is highly skewed, lets look at the outliers in the target variable.
 # Boxplot for detecting outliers in price
-plt.figure(figsize=(10, 6))
-sns.boxplot(x=cp_data['price'])
-plt.title("Boxplot of Housing Prices")
-plt.show()
+
+def boxplot_target_variable(df, target, target_name):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df[target])
+    plt.title(f"Boxplot of {target_name}")
+    plt.show()
+
+boxplot_target_variable(cp_data, 'price', 'Housing Price')
 
 # As we can see, there are price values too high that can impact the models ability to understand and interpret the the data. To make our analysis, more specific and less comples, we are sticking to certain pricing values.
 # We will only interpret residential property values untill 1500000$. Let's consider all the other points as outliers and remove them.
@@ -292,7 +302,7 @@ cp_data_cleaned.info()
 # Frequency of each method type: Plot for price vs method types
 methods = ['method_gun', 'method_knife', 'method_others']
 method_sums = cp_data_cleaned[methods].sum()
-
+    
 plt.figure(figsize=(8, 6))
 method_sums.plot(kind='bar', color=['skyblue', 'orange', 'green'], alpha=0.8)
 plt.title('Frequency of Each Method Type', fontsize=14)
@@ -302,12 +312,7 @@ plt.xticks(rotation=0)
 plt.show()
 
 # Distribution of price after removing the outliers
-plt.figure(figsize=(8, 6))
-sns.histplot(cp_data_cleaned['price'], kde=True, color='purple', bins=30)
-plt.title('Distribution of Price', fontsize=14)
-plt.xlabel('Price', fontsize=12)
-plt.ylabel('Frequency', fontsize=12)
-plt.show()
+histplot_target_variable(cp_data_cleaned, 'price')
 #%%[markdown]
 # The price distribution(after removing the outliers) appears to follow a slightly right-skewed distribution (positive skewness).
 # This tells us that the majority of prices are concentrated towards the lower and middle ranges, while fewer higher prices create a longer tail on the right. Normalizing or scaling the data would be required!
@@ -331,6 +336,7 @@ def plot_heatmap(df):
     sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
     plt.title('Correlation Heatmap')
     plt.show()
+
 #%%[markdown]
 # *Price Correlations Obervations*:
 # <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices. Also, price has a positive correlation with median gross income of the households.
@@ -397,18 +403,25 @@ barplot_ward_price(cp_data_cleaned)
 # Load ward shapefile
 ward_map = gpd.read_file('Wards_from_2022.shp')
 
-def make_map(df, df_map, area, var):
+def make_map(df, df_map, area, var, var_name):
 
     # Merge shapefile data with housing data for wards
     df_merged = df_map.merge(df, left_on=area.upper(), right_on=area, how='left')
     # Data Visualization of Median House Price by Ward on Map
     fig, ax = plt.subplots(figsize=(12, 10))
     
-    # Specify map data visualization you want 
+    # Choose the color of map based on target variable
+    palette = ['Blues', 'OrRd']
     if var == 'price_median':
-        df_merged.plot(column=var, cmap='Blues', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+        color = palette[0]
     elif var == 'total_crime':
-        df_merged.plot(column=var, cmap='OrRd', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+        color = palette[1]
+    else:
+        color = 'YlGn'
+
+    # Visualize on map 
+    df_merged.plot(column=var, cmap=color, linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+
     
     # Add labels to Ward    
     if area == 'ward':
@@ -421,13 +434,10 @@ def make_map(df, df_map, area, var):
             # Add the ward label
             plt.text(centroid.x, centroid.y, str(row['WARD']), fontsize=15, ha='center', color=text_color)
     
-    if var == 'price_median':
-        plt.title(f'Median Property Value by {area}')
-    elif var == 'total_crime':
-        plt.title(f'Total Crime Count by {area}')
+    plt.title(f'{var_name} by {area}')
     plt.show()
 
-make_map(ward_house, ward_map, 'ward', 'price_median')
+make_map(ward_house, ward_map, 'ward', 'price_median', 'Median Property Price')
 # plt.savefig('house_ward_map.png')
 
 #%% [markdown]
@@ -503,8 +513,8 @@ tract_map = gpd.read_file('Census_Tracts_in_2010.shp')
 tract_map['TRACT'] = tract_map['TRACT'].str.lstrip('0').astype(int)
 tract_map.rename(columns = {'TRACT': 'CENSUS_TRACT'}, inplace = True)
 
-make_map(tract_house, tract_map, 'census_tract', 'price_median')
-make_map(tract_crime, tract_map, 'census_tract', 'total_crime')
+make_map(tract_house, tract_map, 'census_tract', 'price_median', 'Median Property Price')
+make_map(tract_crime, tract_map, 'census_tract', 'total_crime', 'Total Crime Counts')
 
 #%% [markdown]
 
