@@ -330,8 +330,29 @@ def plot_heatmap(df):
 # <br><br>
 # Let us dig deep to support our observations.
 
-# Plot for Price vs rooms, bathrooms, kitchens
+# Plot for Price vs Property Attributes (bathrooms, rooms, bedrooms, fireprices)
 #%%
+def make_boxplot(df,cols_name,price,attribute_name):
+    plt.figure(figsize=(10, 6))
+    sns.boxplot(x=df[cols_name], y=df[price], data=df)
+    plt.title("Housing Prices Based on " + attribute_name)
+    plt.xlabel(attribute_name)
+    plt.ylabel("Price")
+    plt.show()
+
+
+# Prices vs rooms
+make_boxplot(cp_data_cleaned,'rooms','price', 'Number of Rooms')
+
+# Prices vs bathrooms
+make_boxplot(cp_data_cleaned,'bathrm','price', 'Number of Bathrooms')
+
+# Prices vs bed room
+make_boxplot(cp_data_cleaned,'bedrm','price', 'Number of Bedrooms')
+
+# Prices vs Fireplaces
+make_boxplot(cp_data_cleaned,'fireplaces','price', 'Number of Fireplaces')
+
 # Prices vs rooms
 def plot_price_room(df,cols_name,price):
     plt.figure(figsize=(10, 6))
@@ -365,64 +386,194 @@ def plot_price_bedrooms(df,cols_name,price):
     plt.show()
 
 #%%
+# Prices vs Fireplaces
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='fireplaces', y='price', data=cp_data_cleaned)
+plt.title("Housing Prices Based on Number of Bed Rooms")
+plt.xlabel("Number of Firepalces")
+plt.ylabel("Price")
+plt.show()
+
+
+# %% [markdown]
+# Now let's visualize Geographical Variation of Property Price (Ward)
+# Aggregate the median house price for each census tract
 # Prices vs ward
 def plot_price_ward(df,cols_name,price):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of ward")
+    plt.title("Housing Prices Based on Ward")
     plt.xlabel("Ward")
     plt.ylabel("Price")
     plt.show()
 
 
+# %% [markdown]
+# Now let's visualize Geographical Variation of Property Price (Ward)
+# Aggregate the median house price for each census tract
+ward_house = cp_data_cleaned.groupby('ward').agg(
+    price_median=('price', 'median'), 
+    price_mean=('price', 'mean')).reset_index()
+
+# Load ward shapefile
+ward_map = gpd.read_file('Wards_from_2022.shp')
+
+def make_map(df, df_map, area, var):
+
+    # Merge shapefile data with housing data for wards
+    df_merged = df_map.merge(df, left_on=area.upper(), right_on=area, how='left')
+    # Data Visualization of Median House Price by Ward on Map
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    # Specify map data visualization you want 
+    if var == 'price_median':
+        df_merged.plot(column=var, cmap='Blues', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+    elif var == 'total_crime':
+        df_merged.plot(column=var, cmap='OrRd', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+    
+    # Add labels to Ward    
+    if area == 'ward':
+        for idx, row in df_merged.iterrows():
+            centroid = row['geometry'].centroid
+            price_median = row[var]
+
+            # Set color based on the median price
+            text_color = 'white' if price_median > 400000 else 'black'
+            # Add the ward label
+            plt.text(centroid.x, centroid.y, str(row['WARD']), fontsize=15, ha='center', color=text_color)
+    
+    if var == 'price_median':
+        plt.title(f'Median Property Value by {area}')
+    elif var == 'total_crime':
+        plt.title(f'Total Crime Count by {area}')
+    plt.show()
+
+make_map(ward_house, ward_map, 'ward', 'price_median')
+# plt.savefig('house_ward_map.png')
+
+#%% [markdown]
+
+# Data visualization on time variation of housing price by year
+
+# Boxplot 
+plt.figure(figsize=(10, 6))
+sns.boxplot(x='year', y='price', data=cp_data_cleaned)
+plt.title("Boxplot of Housing Prices by Year")
+plt.xlabel("Year")
+plt.ylabel("Housing Price")
+plt.show()
+
+# Line plot
+yr_median = cp_data_cleaned.groupby('year')['price'].median().reset_index()
+yr_median
+
+
+plt.figure(figsize=(10, 6))
+sns.lineplot(x='year', y='price', data=yr_median)
+plt.title("Yearly Trend of Median Housing Price")
+plt.show()
+
+#%% [markdown]
+# Looking at the boxplot we do not observe clear difference of housing price distirbution between different year.
+# However, there's a clear yearly trend in the median housing price.
+
+#%% [markdown]
+### Crime Related Features vs Housing Price
+#
+# 
+#### Housing Price vs Total Crime Counts
+# 
+# Now we will visualize how tract level total crime counts can affect property price.
+#
+# Scatter plot for total crimes vs price
+plt.figure(figsize=(10, 6))
+plt.scatter(cp_data_cleaned['total_crime_count'], cp_data_cleaned['price'], alpha=0.6)
+plt.title('Scatter Plot: Total Crimes vs Price')
+plt.xlabel('Crime Count')
+plt.ylabel('Price')
+plt.legend()
+plt.grid(alpha=0.5)
+plt.show()
+
+#%% [markdown]
+# In scatter plot, we cannot observe a clear patterns between total crime counts and price.
+# To further investigate, we will visualize the distribution of crimes and property values by census tract on a map. 
+# This will allow us to explore whether neighborhoods with higher crime occurrences tend to have lower property values.
+
+
+#%%
+# Aggregate the total crime counts for each neighborhood
+tract_crime = cp_data_cleaned[
+    ['census_tract', 
+     'year', 
+     'total_crime_count']
+     ].drop_duplicates(subset=['census_tract', 'year']).groupby('census_tract').agg(
+            total_crime = ('total_crime_count', 'sum'))
+
+# Aggregate the median house price for each census tract
+tract_house = cp_data_cleaned.groupby('census_tract').agg(
+    price_median=('price', 'median')).reset_index()
+tract_house
+
+tract_map = gpd.read_file('Census_Tracts_in_2010.shp')
+
+# Clean up tract variable and convert into integer
+tract_map['TRACT'] = tract_map['TRACT'].str.lstrip('0').astype(int)
+tract_map.rename(columns = {'TRACT': 'CENSUS_TRACT'}, inplace = True)
+
+make_map(tract_house, tract_map, 'census_tract', 'price_median')
+make_map(tract_crime, tract_map, 'census_tract', 'total_crime')
+
+#%% [markdown]
+
+# By visualizing from the maps, we can observe that areas with higher crime counts generally exhibit lower property values, 
+# suggesting a possible negative impact of crime concentration on property values.
+
 #%%[markdown]
 # # Scatter plot: All method types(gun, knife, others) vs housing prices
 #%%
-# Prepare data for scatter plot
-plt.figure(figsize=(10, 6))
+def make_scatter_method(df, methods):
 
-# Plot for METHOD_GUN
-plt.scatter(
-    cp_data_cleaned.loc[cp_data_cleaned['method_gun'] == 1, 'price'],
-    cp_data_cleaned.loc[cp_data_cleaned['method_gun'] == 1].index,
-    color='red', label='Gun', alpha=0.6
-)
+    plt.figure(figsize=(10, 6))
+    colors = ['red', 'blue', 'yellow']
 
-# Plot for METHOD_KNIFE
-plt.scatter(
-    cp_data_cleaned.loc[cp_data_cleaned['method_knife'] == 1, 'price'],
-    cp_data_cleaned.loc[cp_data_cleaned['method_knife'] == 1].index,
-    color='blue', label='Knife', alpha=0.6
-)
+    for i in range(len(methods)):
 
-# Plot for METHOD_OTHERS
-plt.scatter(
-    cp_data_cleaned.loc[cp_data_cleaned['method_others'] == 1, 'price'],
-    cp_data_cleaned.loc[cp_data_cleaned['method_others'] == 1].index,
-    color='yellow', label='Others', alpha=0.6
-)
 
-# Scatter plot: method types vs price
-plt.title('Scatter Plot: Price vs Method Types', fontsize=14)
-plt.xlabel('Price', fontsize=12)
-plt.ylabel('Index (Observations)', fontsize=12)
-plt.legend(title='Method Type')
-plt.grid(alpha=0.5, linestyle='--')
-plt.show()
+        # Plot for each method
+        plt.scatter(
+            df.loc[df[methods[i]] == 1, 'price'],
+            df.loc[df[methods[i]] == 1].index,
+            color=colors[i], label='Gun', alpha=0.6
+        )
+
+
+    # Scatter plot: method types vs price
+    plt.title('Scatter Plot: Price vs Method Types', fontsize=14)
+    plt.xlabel('Price', fontsize=12)
+    plt.ylabel('Index (Observations)', fontsize=12)
+    plt.legend(title='Method Type')
+    plt.grid(alpha=0.5, linestyle='--')
+    plt.show()
+
+make_scatter_method(cp_data_cleaned, ['method_gun', 'method_knife', 'method_others'])
+
 
 #%%[markdown]
 # From the above scatter plot, we can see that there are no Method_Others influencing the price values. 
 # Let us perform a statistical test(Spearman Correlation) to check the relationship between the price and the method types and prove our point.
 #%%
-# Calculate Spearman correlation between 'price' and each 'method' type
-corr_gun, p_gun = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_gun'])
-corr_knife, p_knife = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_knife'])
-corr_others, p_others = spearmanr(cp_data_cleaned['price'], cp_data_cleaned['method_others'])
 
-# Display the results
-print(f"Spearman Correlation for method_GUN: {corr_gun}, p-value: {p_gun}")
-print(f"Spearman Correlation for method_KNIFE: {corr_knife}, p-value: {p_knife}")
-print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_others}")
+def spearman_corr(df, target, feature):
+
+    # Calculate Spearman correlation between 'price' and each 'method' type
+    corr, p_value = spearmanr(df[target], df[feature])
+    # Display the results
+    print(f"Spearman Correlation for {feature}: {corr}, p-value: {p_value}")
+
+spearman_corr(cp_data_cleaned, 'price', 'method_gun')
+spearman_corr(cp_data_cleaned, 'price', 'method_knife')
+spearman_corr(cp_data_cleaned, 'price', 'method_others')
 
 #%%[markdown]
 # Let us state our hypothesis,<br>
@@ -438,7 +589,6 @@ print(f"Spearman Correlation for method_OTHERS: {corr_others}, p-value: {p_other
 # 3. For method_OTHERS:<br>
 # Interpretation: Since the p-value is 0.976e, we reject the null hypothesis, indicating a significant monotonic relationship between price and method_OTHERS. This suggests that changes in price does significantly affect the occurrence of incidents categorized as "Others."
 #<br>
-
 
 
 # Scatter plot between crime categories vs the price distribution
@@ -531,12 +681,6 @@ def barplot_ward_price(df):
 
 
 
-
-########YOUR VISUALIZATIONS AND TESTING HERE################
-
-
-
-
 #%%[Markdown]
 ## Modelling Techniques
 
@@ -544,8 +688,363 @@ def barplot_ward_price(df):
 
 ##### Light GBM
 
+# The first model is trained using only `total_crime_count` and controlling varuiables,
+# while the second one is trained with all detailed crime features (`violent_crime_count`,
+# `property_crime_count`,`method_gun`, `method_knife``, 'method_others', 'shift_day',
+# 'shift_midnight','shift_evening')
+
+#%%
+
+### Total Crime Counts ####
+
+# Control for the physical features (`bathrm`, `rooms`, `bedrm`, `fireplaces`),
+# location (`ward`), time (`year`), socioeconomic factor (`median_gross_income`)
+controls = ['bathrm', 'rooms', 'bedrm', 'fireplaces', 'year', 'ward', 'median_gross_income']
+total = ['total_crime_count']
+
+features = controls + total
+
+X = cp_data_cleaned[features]
+y = cp_data_cleaned['price']
+
+# Replace spaces with underscores in column names for consistency
+X.columns = X.columns.str.replace(' ', '_')
 
 
+cat_features = ['ward']
+X[cat_features] = X[cat_features].astype('category')
+
+# Split into training, validation, test sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)  
+
+#Define initial model parameters
+initial_params = {
+    'objective': 'regression',
+    'metric': 'rmse',
+    'boosting_type': 'gbdt',
+    'random_state': 42
+}
+
+# Initialize the LGBMRegressor with the specified parameters
+model = LGBMRegressor(**initial_params)
+
+# Fit the model with early stopping
+model.fit(
+    X_train, y_train,
+    eval_metric='rmse',
+    categorical_feature=cat_features
+)
+
+
+# Test RMSE and R2
+y_test_pred = model.predict(X_test, num_iteration=model.best_iteration_)
+test_rmse = mean_squared_error(y_test, y_test_pred, squared=False)
+test_r2 = r2_score(y_test, y_test_pred)
+print(f'Initial Test RMSE: {test_rmse:.4f}')
+print(f'Initial Test R²: {test_r2:.4f}')
+
+
+#%% 
+######### Hyperparameter Tuning ################# 
+
+param_grid = {
+    'learning_rate': [0.03, 0.05, 0.07],
+    'num_leaves': [20, 27, 31],
+    'max_depth': [7, 10, 15],
+    'reg_alpha': [0, 0.1, 0.5],
+    'reg_lambda': [0, 0.1, 0.3]
+}
+
+lgbm = LGBMRegressor(
+    objective='regression',
+    metric='rmse',
+    boosting_type='gbdt',
+    verbosity=-1,
+    random_state=42
+)
+
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Initialize GridSearchCV with cross-validation
+grid_search = GridSearchCV(
+    estimator=lgbm,
+    param_grid=param_grid,
+    scoring='neg_root_mean_squared_error',
+    cv=kf,
+    verbose=1,
+    n_jobs=1
+)
+
+grid_search.fit(X_train, y_train,categorical_feature=cat_features)
+
+# Extract the best parameters and best CV RMSE
+best_params = grid_search.best_params_
+best_rmse = -grid_search.best_score_
+print('Best Parameters found by GridSearchCV:', best_params)
+print(f'Best CV RMSE: {best_rmse:.4f}')
+
+# Fitting 5 folds for each of 243 candidates, totalling 1215 fits
+# Best Parameters found by GridSearchCV: {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
+# Best CV RMSE: 134926.1966
+#%%
+
+# best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
+
+model_params = {
+    'objective': 'regression',
+    'metric': 'rmse',
+    'boosting_type': 'gbdt',
+    'verbosity': -1,
+    'random_state': 42,
+    **best_params
+}
+
+lgbm_cv = LGBMRegressor(**model_params)
+
+cv_scores_best = cross_validate(
+    lgbm_cv, 
+    X_train,
+    y_train,
+    cv=kf,
+    scoring=['neg_root_mean_squared_error', 'r2'],
+    n_jobs=1,
+    verbose=0,
+    fit_params={'categorical_feature': cat_features}
+)
+
+
+final_model = LGBMRegressor(**model_params)
+
+
+final_model.fit(
+    X_train, y_train,
+    eval_metric='rmse',
+    categorical_feature=cat_features
+)
+
+
+####### Final Model Evaluation ############
+
+# Calculate Test Data RMSE and R2
+y_test_pred = final_model.predict(X_test, num_iteration=final_model.best_iteration_)
+test_rmse = mean_squared_error(y_test, y_test_pred, squared=False)
+test_r2 = r2_score(y_test, y_test_pred)
+
+# Calculate Cross Validation RMSE and R2 
+cv_rmse_best = -cv_scores_best['test_neg_root_mean_squared_error']
+cv_r2_best = cv_scores_best['test_r2']
+
+plt.scatter(y_test, y_test_pred, alpha=0.5)
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='red', linestyle='--')
+plt.xlabel('Actual Values')
+plt.ylabel('Predicted Values')
+plt.title('Actual vs. Predicted Values (Total Crime Counts)')
+plt.show()
+
+
+# Print out outputs
+print(f'Final Model Test RMSE: {test_rmse:.4f}')
+print(f'Final Model Test R²: {test_r2:.4f}\n')
+
+print(f'Average Cross-Validation RMSE (Best Params): {cv_rmse_best.mean():.4f}')
+print(f'Average Cross-Validation R² (Best Params): {cv_r2_best.mean():.4f}')
+
+#%%
+
+# Extract feature importances
+feature_importances = pd.DataFrame({
+    'feature': X_train.columns,
+    'importance': final_model.feature_importances_
+})
+# Sort features by importance in descending order
+feature_importances.sort_values(by='importance', ascending=False, inplace=True)
+print("Feature Importances:")
+print(feature_importances)
+
+# Plot feature importances by gain
+lgb.plot_importance(final_model, importance_type="gain", figsize=(7,6), title="LightGBM Feature Importance (Gain)")
+plt.show()
+
+# Plot feature importances by split
+lgb.plot_importance(final_model, importance_type="split", figsize=(7,6), title="LightGBM Feature Importance (Split)")
+plt.show()
+
+# %% [markdown]
+
+#### All Featrues ###
+
+offenses = ['violent_crime_count', 'property_crime_count']
+methods = ['method_gun', 'method_knife', 'method_others']
+shifts = ['shift_day', 'shift_midnight', 'shift_evening']
+
+features = controls+offenses+methods+shifts
+
+
+X = cp_data_cleaned[features]
+y = cp_data_cleaned['price']
+
+# Clean up column name
+X.columns = X.columns.str.replace(' ', '_')
+
+# Define categorical features and convert their data types to 'category'
+cat_features = ['ward']
+X[cat_features] = X[cat_features].astype('category')
+
+# Split into training, validation, test sets
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)  
+
+
+initial_params = {
+    'objective': 'regression',
+    'metric': 'rmse',
+    'random_state': 42
+}
+
+initial_model = LGBMRegressor(**initial_params)
+
+initial_model.fit(
+    X_train, y_train,
+    categorical_feature=cat_features,
+    eval_metric='rmse'
+)
+
+
+y_test_pred_initial = initial_model.predict(X_test, num_iteration=initial_model.best_iteration_)
+test_rmse_initial = mean_squared_error(y_test, y_test_pred_initial, squared=False)
+test_r2_initial = r2_score(y_test, y_test_pred_initial)
+
+print(f"Initial Model Test RMSE: {test_rmse_initial:.4f}")
+print(f"Initial Model Test R²: {test_r2_initial:.4f}")
+
+#%% 
+########## Hyperparameter Tuning ################
+
+param_grid = {
+    'learning_rate': [0.01, 0.05, 0.07, 0.1],
+    'num_leaves': [20, 31, 62],
+    'max_depth': [7, 10, 15],
+    'reg_alpha': [0, 0.1, 0.5],
+    'reg_lambda': [0, 0.1, 0.5]
+}
+
+lgbm = LGBMRegressor(
+    objective='regression',
+    metric='rmse',
+    boosting_type='gbdt',
+    categorical_feature=X_train.columns.get_loc('ward'),
+    verbosity=-1,
+    random_state=42
+
+)
+
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+
+# Initialize GridSearchCV with cross-validation
+grid_search = GridSearchCV(
+    estimator=lgbm,
+    param_grid=param_grid,
+    scoring='neg_root_mean_squared_error', 
+    cv=kf,
+    verbose=1,
+    n_jobs=1
+)
+
+grid_search.fit(X_train, y_train, categorical_feature=cat_features)
+
+# Extract the best parameters and best CV RMSE
+best_params = grid_search.best_params_
+best_rmse = -grid_search.best_score_
+print('Best Parameters found by GridSearchCV:', best_params)
+print(f'Best CV RMSE: {best_rmse:.4f}')
+
+# Best Parameters found by GridSearchCV: {'learning_rate': 0.1, 'max_depth': 15, 'num_leaves': 62, 'reg_alpha': 0.5, 'reg_lambda': 0.1}
+# Best CV RMSE: 132909.6492
+#%%
+best_params =  {'learning_rate': 0.1, 'max_depth': 15, 'num_leaves': 62, 'reg_alpha': 0.5, 'reg_lambda': 0.1}
+
+model_params ={
+    'objective': 'regression',
+    'metric': 'rmse',
+    'boosting_type': 'gbdt',
+    'verbosity': -1,
+    'random_state': 42,
+    **best_params}
+
+
+# Initialize cross validation
+lgbm_cv = LGBMRegressor(**model_params)
+
+cv_scores_best = cross_validate(
+    lgbm_cv, 
+    X_train,
+    y_train,
+    cv=kf,
+    scoring=['neg_root_mean_squared_error', 'r2'],
+    n_jobs=1,
+    verbose=0,
+    fit_params={'categorical_feature': cat_features}
+)
+
+# Initialize the final model with the best parameters
+final_model = LGBMRegressor(**model_params)
+
+
+# Fit model on training data set
+final_model.fit(
+    X_train, y_train,
+    eval_metric='rmse',
+    categorical_feature = X_train.columns.get_loc('ward')
+)
+
+######### Final Model #############
+
+
+# Calculate Test Data RMSE and R2
+y_test_pred = final_model.predict(X_test, num_iteration=final_model.best_iteration_)
+test_rmse = mean_squared_error(y_test, y_test_pred, squared=False)
+test_r2 = r2_score(y_test, y_test_pred)
+
+# Calculate Cross Validation RMSE and R2 
+cv_rmse_best = -cv_scores_best['test_neg_root_mean_squared_error']
+cv_r2_best = cv_scores_best['test_r2']
+
+print(f'Final Model Test RMSE: {test_rmse:.4f}')
+print(f'Final Model Test R²: {test_r2:.4f}\n')
+
+print(f'Average Cross-Validation RMSE (Best Params): {cv_rmse_best.mean():.4f}')
+print(f'Average Cross-Validation R² (Best Params): {cv_r2_best.mean():.4f}')
+
+# Actual vs. Predicted Values Plot 
+plt.scatter(y_test, y_test_pred, alpha=0.5)
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], color='red', linestyle='--')
+plt.xlabel('Actual Values')
+plt.ylabel('Predicted Values')
+plt.title('Actual vs. Predicted Values (All Features)')
+plt.show()
+
+#%% 
+# Final Feature Importance Analysis
+# Extract feature importances from the final model
+feature_importances = pd.DataFrame({
+    'feature': X_train.columns,
+    'importance': final_model.feature_importances_
+})
+
+# Sort features by importance in descending order
+feature_importances.sort_values(by='importance', ascending=False, inplace=True)
+print("Final Feature Importances:")
+print(feature_importances)
+
+
+lgb.plot_importance(final_model, importance_type="gain", figsize=(7,6), title="LightGBM Feature Importance (Gain)")
+plt.show()
+
+lgb.plot_importance(final_model, importance_type="split", figsize=(7,6), title="LightGBM Feature Importance (Split)")
+plt.show()
 
 
 
