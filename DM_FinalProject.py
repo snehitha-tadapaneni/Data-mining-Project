@@ -341,11 +341,11 @@ def plot_heatmap(df):
 
 # Plot for Price vs Property Attributes (bathrooms, rooms, bedrooms, fireprices)
 #%%
-def make_boxplot(df,x_var,y_var,attribute_name):
+def make_boxplot(df,var_x,var_y,name_x):
     plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df[x_var], y=df[y_var], data=df)
-    plt.title("Housing Prices Based on " + attribute_name)
-    plt.xlabel(attribute_name)
+    sns.boxplot(x=df[var_x], y=df[var_y], data=df)
+    plt.title("Housing Prices Based on " + name_x)
+    plt.xlabel(name_x)
     plt.ylabel("Price")
     plt.show()
 
@@ -362,61 +362,13 @@ make_boxplot(cp_data_cleaned,'bedrm','price', 'Number of Bedrooms')
 # Prices vs Fireplaces
 make_boxplot(cp_data_cleaned,'fireplaces','price', 'Number of Fireplaces')
 
-#%%
-# Prices vs rooms
-def plot_price_room(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Rooms")
-    plt.xlabel("Number of Rooms")
-    plt.ylabel("Price")
-    plt.show()
-
-plot_price_room(df1,'rooms','price')
-# %%
-# Prices vs bathrooms
-def plot_price_bathrooms(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Bathrooms")
-    plt.xlabel("Number of Bathrooms")
-    plt.ylabel("Price")
-    plt.show()
-
-
-
-#%%
-# Prices vs bed room
-def plot_price_bedrooms(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Bed Rooms")
-    plt.xlabel("Number of Rooms")
-    plt.ylabel("Price")
-    plt.show()
-
-#%%
-# Prices vs Fireplaces
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='fireplaces', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of Bed Rooms")
-plt.xlabel("Number of Firepalces")
-plt.ylabel("Price")
-plt.show()
-
 
 # %% [markdown]
 # Now let's visualize Geographical Variation of Property Price (Ward)
 # Aggregate the median house price for each census tract
 # Prices vs ward
-def plot_price_ward(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Ward")
-    plt.xlabel("Ward")
-    plt.ylabel("Price")
-    plt.show()
 
+make_boxplot(cp_data_cleaned,'ward','price', 'Ward')
 
 # %% [markdown]
 # Now let's visualize Geographical Variation of Property Price (Ward)
@@ -424,6 +376,23 @@ def plot_price_ward(df,cols_name,price):
 ward_house = cp_data_cleaned.groupby('ward').agg(
     price_median=('price', 'median'), 
     price_mean=('price', 'mean')).reset_index()
+
+# Create a bar plot: Ward vs Price
+def barplot_ward_price(df):
+    grouped_data = df.groupby('ward').agg({
+    'price': 'median'}).reset_index()
+
+    # Set the plotting style
+    sns.set_style("whitegrid")
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=grouped_data, x=df['ward'], y=df['price'], palette='coolwarm')
+    plt.title('Ward vs Median Price')
+    plt.xlabel('Ward')
+    plt.ylabel('Median Price')
+    plt.tight_layout()
+    plt.show()
+
+barplot_ward_price(cp_data_cleaned)
 
 # Load ward shapefile
 ward_map = gpd.read_file('Wards_from_2022.shp')
@@ -467,18 +436,21 @@ make_map(ward_house, ward_map, 'ward', 'price_median')
 
 make_boxplot(cp_data_cleaned,'year','price', 'Year')
 
-# Line plot
 yr_median = cp_data_cleaned.groupby('year')['price'].median().reset_index()
-yr_median
 
-plt.figure(figsize=(10, 6))
-sns.lineplot(x='year', y='price', data=yr_median)
-plt.title("Yearly Trend of Median Housing Price")
-plt.show()
+
+# Line plot
+def make_lineplot(df, col_name, target):
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(x=col_name, y=target, data=df)
+    plt.title("Yearly Trend of Median Housing Price")
+    plt.show()
+
+make_lineplot(yr_median, 'year', 'price')
 
 #%% [markdown]
 # The boxplot shows that while the overall distribution of housing prices appears similar across different years. 
-# Despite the similarity in distribution, the median housing prices (likely represented by the central line in each box) display a noticeable trend over the years. 
+# Despite the similarity in distribution, the median housing prices display a noticeable trend over the years. 
 
 #%% [markdown]
 ### Crime Related Features vs Housing Price
@@ -493,14 +465,17 @@ cp_data_cleaned['total_crime_count'] = cp_data_cleaned[
     'offense_theft/other']].sum(axis=1)
 
 # Scatter plot for total crimes vs price
-plt.figure(figsize=(10, 6))
-plt.scatter(cp_data_cleaned['total_crime_count'], cp_data_cleaned['price'], alpha=0.6)
-plt.title('Scatter Plot: Total Crimes vs Price')
-plt.xlabel('Crime Count')
-plt.ylabel('Price')
-plt.legend()
-plt.grid(alpha=0.5)
-plt.show()
+def make_scatter(df, var_x, var_y, name_x):
+    plt.figure(figsize=(10, 6))
+    plt.scatter(df[var_x], df[var_y], alpha=0.6)
+    plt.title(f'Scatter Plot: {name_x} vs Price')
+    plt.xlabel(name_x)
+    plt.ylabel('Price')
+    plt.legend()
+    plt.grid(alpha=0.5)
+    plt.show()
+   
+make_scatter(cp_data_cleaned, 'total_crime_count', 'price', 'Total Crime Counts')
 
 #%% [markdown]
 # In scatter plot, we cannot observe a clear patterns between total crime counts and price.
@@ -621,6 +596,7 @@ def plot_crime_price(df,):
     plt.grid(alpha=0.5)
     plt.show()
 
+plot_crime_price(cp_data_cleaned)
 #%%[markdown]
 # As, we can see the above scatter plot is too complex to understand.
 # Let us aggregate the data based on census tract and plot the violent and property crime values for more clarity.
@@ -635,7 +611,7 @@ tract_data = cp_data_cleaned.groupby('census_tract').agg({
 
 # Scatter plot for aggregated crime counts vs average price
 def aggcrime_price(df):
-    tract_data = cp_data_cleaned.groupby('census_tract').agg({
+    tract_data = df.groupby('census_tract').agg({
     'violent_crime_count': 'sum',
     'property_crime_count': 'sum',
     'price': 'mean'}).reset_index()
@@ -648,7 +624,7 @@ def aggcrime_price(df):
     plt.legend()
     plt.grid(alpha=0.5)
     plt.show()
-
+aggcrime_price(cp_data_cleaned)
 #%%
 # Compute correlation coefficients: Price vs violent crime vs property crime
 correlation_matrix = cp_data_cleaned[['price', 'violent_crime_count', 'property_crime_count']].corr()
@@ -660,31 +636,13 @@ def corr_plot(df):
     sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
     plt.title('Correlation Matrix: Price vs Crime Counts')
     plt.show()
+
+corr_plot(cp_data_cleaned)
 #%%[markdown]
 # From the above heatmap between Violent Crime, Prperty Crime and Price values, we can say:<br>
 # 1. Violent crime has a stronger and negative impact on property prices compared to property crimes.<br>
 # 2. Property crimes are weakly related to prices, indicating they may not be a strong factor influencing property values in the dataset.<br>
 # 3. The moderate positive correlation between violent and property crimes suggests that crime types are somewhat related in occurrence.<br>
-
-#%%
-#cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
-
-# Create a bar plot: Ward vs Price
-def barplot_ward_price(df):
-    grouped_data = df.groupby('ward').agg({
-    'price': 'median'}).reset_index()
-
-    # Set the plotting style
-    sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=grouped_data, x=df['ward'], y=df['price'], palette='coolwarm')
-    plt.title('Ward vs Median Price')
-    plt.xlabel('Ward')
-    plt.ylabel('Median Price')
-    plt.tight_layout()
-    plt.show()
-
-
 
 #%%[Markdown]
 ## Modelling Techniques
@@ -700,7 +658,7 @@ def barplot_ward_price(df):
 
 #%%
 
-### Total Crime Counts ####
+### Model 1: Total Crime Counts ###
 
 # Define features
 controls = ['bathrm', 'rooms', 'bedrm', 'fireplaces', 'year', 'ward', 'median_gross_income']
@@ -876,7 +834,7 @@ plt.show()
 
 # %% [markdown]
 
-#### All Featrues ###
+### Model 2: All Featrues ###
 
 # Define features
 features = ['violent_crime_count', 'property_crime_count',
@@ -1055,7 +1013,8 @@ plt.show()
 
 #%% [markdown]
 # __Model Evaluation__: <br>
-# Comparing R2 and RMSE, the model with detailed crime features (R2 = 75.62%, RMSE = 138894.19) shows a marginal improvement over the model with only total crime counts (R2 = 76.22%, RMSE = 137162.89). 
+# Comparing R2 and RMSE, the model with detailed crime features (R2 = 76.22%, RMSE = 137162.89) shows a marginal improvement over the model with only total crime counts (R2 = 75.62%, RMSE = 138894.19).
+# The R2 score indicates that the detailed crime features model explains 76.22% of the variation in property prices, while the total crime count model explains 75.62%.
 # However, both models perform similarly, as seen in the actual vs. predicted plots, where predictions align closely with the ideal line. 
 # Both models exhibit slightly greater variance at the higher end of property prices, with the detailed model showing slightly better alignment overall.
 # 
