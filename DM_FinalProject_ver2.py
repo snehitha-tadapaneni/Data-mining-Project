@@ -33,7 +33,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr
 from scipy.stats import f_oneway
-import geopandas as gpd
 
 from sklearn.model_selection import train_test_split, GridSearchCV, KFold, cross_val_score, cross_validate
 from sklearn.metrics import mean_squared_error, r2_score
@@ -236,10 +235,91 @@ cp_data['ward'] = cp_data['ward'].str.replace('Ward ', '', regex=True).astype(in
 # Our final cleaned data has columns
 print(cp_data.columns)
 
+
+
+#%%
+
+##############
+## Funciton ##
+##############
+
+#################################################
+def make_scatter_method(df, methods):
+
+    plt.figure(figsize=(10, 6))
+    colors = ['red', 'blue', 'yellow']
+
+    for i in len(methods):
+
+        # Plot for each method
+        plt.scatter(
+            df.loc[df[methods[i]] == 1, 'price'],
+            df.loc[df[methods[i]] == 1].index,
+            color=colors[i], label='Gun', alpha=0.6
+        )
+
+    # Scatter plot: method types vs price
+    plt.title('Scatter Plot: Price vs Method Types', fontsize=14)
+    plt.xlabel('Price', fontsize=12)
+    plt.ylabel('Index (Observations)', fontsize=12)
+    plt.legend(title='Method Type')
+    plt.grid(alpha=0.5, linestyle='--')
+    plt.show()
+
+##################################################
+
+def spearman_corr(df, target, feature):
+
+    # Calculate Spearman correlation between 'price' and each 'method' type
+    corr, p_value = spearmanr(df[target], df[feature])
+    # Display the results
+    print(f"Spearman Correlation for {feature}: {corr}, p-value: {p_value}")
+
+#################################################
+
+def make_map(df, df_map, area, var):
+
+    # Merge shapefile data with housing data for wards
+    df_merged = df_map.merge(df, left_on=area.upper(), right_on=area, how='left')
+    # Data Visualization of Median House Price by Ward on Map
+    fig, ax = plt.subplots(figsize=(12, 10))
+    
+    # Specify map data visualization you want 
+    if var == 'price_median':
+        df_merged.plot(column=var, cmap='Blues', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+    elif var == 'total_crime':
+        df_merged.plot(column=var, cmap='OrRd', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+    
+
+    # Add labels to Ward    
+    if area == 'ward':
+
+        for idx, row in df_merged.iterrows():
+
+            centroid = row['geometry'].centroid
+            price_median = row[var]
+
+            # Set color based on the median price
+            text_color = 'white' if price_median > 400000 else 'black'
+            # Add the ward label
+            plt.text(centroid.x, centroid.y, str(row['WARD']), fontsize=15, ha='center', color=text_color)
+    
+    if var == 'price_median':
+        plt.title(f'Median Property Value by {area}')
+    elif var == 'total_crime':
+        plt.title(f'Total Crime Count by {area}')
+    plt.show()
+
+    return None
+
+#############################################
+
+
+
+
 #%%[markdown]
 # Now, that we have cleaned our dataset. Let's Explore and learn more about our features.
 
-#
 
 ## Data Visualization: Univariate Analysis
 # <br>
@@ -252,13 +332,12 @@ plt.suptitle('Distributions of Numerical Features')
 plt.show()
 
 # Analysing the target variable - plotting a distribution to understand price
-def plot_target_variable(df,cols_name):
-    plt.figure(figsize=(10, 6))
-    sns.histplot(df['cols_name'], kde=True)
-    plt.title("Distribution of Housing Prices")
-    plt.xlabel("Price")
-    plt.ylabel("Frequency")
-    plt.show()
+plt.figure(figsize=(10, 6))
+sns.histplot(cp_data['price'], kde=True)
+plt.title("Distribution of Housing Prices")
+plt.xlabel("Price")
+plt.ylabel("Frequency")
+plt.show()
 
 # %%[markdown]
 # As the price distribution is highly skewed, lets look at the outliers in the target variable.
@@ -317,19 +396,19 @@ plt.show()
 # <br>
 # Correlation heatmap for all Numerical Variables
 # %%
-# Heatmap to understand relationship between price and other numerical variables to plot a heatmap and understand the correlation of the features with the target variables
+# Heatmap to understand relationship bw price and other variables
+# Selected only numerical columns
+numerical_cols = cp_data_cleaned.select_dtypes(include=['float64', 'int64']).columns
+numerical_df = cp_data_cleaned[numerical_cols]
+
+# Compute the correlation matrix
+corr = numerical_df.corr()
 
 # Plot the heatmap
-def plot_heatmap(df):
-    # Selected only numerical features from the dataset
-    numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns
-    numerical_df = df[numerical_cols]
-    # Compute the correlation matrix for the numerical features 
-    corr = numerical_df.corr()
-    plt.figure(figsize=(12, 8))
-    sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
-    plt.title('Correlation Heatmap')
-    plt.show()
+plt.figure(figsize=(12, 8))
+sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+plt.title('Correlation Heatmap')
+plt.show()
 #%%[markdown]
 # *Price Correlations Obervations*:
 # <br> 1. The variable PRICE has a moderate positive correlation with CENSUS_TRACT (correlation ~0.54), showing some geographical influence on prices. Also, price has a positive correlation with median gross income of the households.
@@ -338,8 +417,9 @@ def plot_heatmap(df):
 # <br><br>
 # Let us dig deep to support our observations.
 
-# Plot for Price vs Property Attributes (bathrooms, rooms, bedrooms, fireprices)
+# Plot for Price vs Property Attributes (bathroom, rooms, bedroom, fireprice)
 #%%
+
 def make_boxplot(df,cols_name,price,attribute_name):
     plt.figure(figsize=(10, 6))
     sns.boxplot(x=df[cols_name], y=df[price], data=df)
@@ -360,62 +440,6 @@ make_boxplot(cp_data_cleaned,'bedrm','price', 'Number of Bedrooms')
 
 # Prices vs Fireplaces
 make_boxplot(cp_data_cleaned,'fireplaces','price', 'Number of Fireplaces')
-
-# Prices vs rooms
-def plot_price_room(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Rooms")
-    plt.xlabel("Number of Rooms")
-    plt.ylabel("Price")
-    plt.show()
-
-plot_price_room(cp_data_cleaned,'rooms','price')
-# %%
-# Prices vs bathrooms
-def plot_price_bathrooms(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Bathrooms")
-    plt.xlabel("Number of Bathrooms")
-    plt.ylabel("Price")
-    plt.show()
-
-
-
-#%%
-# Prices vs bed room
-def plot_price_bedrooms(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Number of Bed Rooms")
-    plt.xlabel("Number of Rooms")
-    plt.ylabel("Price")
-    plt.show()
-
-#%%
-# Prices vs Fireplaces
-plt.figure(figsize=(10, 6))
-sns.boxplot(x='fireplaces', y='price', data=cp_data_cleaned)
-plt.title("Housing Prices Based on Number of Bed Rooms")
-plt.xlabel("Number of Firepalces")
-plt.ylabel("Price")
-plt.show()
-
-
-# %% [markdown]
-# Now let's visualize Geographical Variation of Property Price (Ward)
-# Aggregate the median house price for each census tract
-# Prices vs ward
-def plot_price_ward(df,cols_name,price):
-    plt.figure(figsize=(10, 6))
-    sns.boxplot(x=df1[cols_name], y=df1[price], data=df)
-    plt.title("Housing Prices Based on Ward")
-    plt.xlabel("Ward")
-    plt.ylabel("Price")
-    plt.show()
-
-
 # %% [markdown]
 # Now let's visualize Geographical Variation of Property Price (Ward)
 # Aggregate the median house price for each census tract
@@ -426,36 +450,6 @@ ward_house = cp_data_cleaned.groupby('ward').agg(
 # Load ward shapefile
 ward_map = gpd.read_file('Wards_from_2022.shp')
 
-def make_map(df, df_map, area, var):
-
-    # Merge shapefile data with housing data for wards
-    df_merged = df_map.merge(df, left_on=area.upper(), right_on=area, how='left')
-    # Data Visualization of Median House Price by Ward on Map
-    fig, ax = plt.subplots(figsize=(12, 10))
-    
-    # Specify map data visualization you want 
-    if var == 'price_median':
-        df_merged.plot(column=var, cmap='Blues', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
-    elif var == 'total_crime':
-        df_merged.plot(column=var, cmap='OrRd', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
-    
-    # Add labels to Ward    
-    if area == 'ward':
-        for idx, row in df_merged.iterrows():
-            centroid = row['geometry'].centroid
-            price_median = row[var]
-
-            # Set color based on the median price
-            text_color = 'white' if price_median > 400000 else 'black'
-            # Add the ward label
-            plt.text(centroid.x, centroid.y, str(row['WARD']), fontsize=15, ha='center', color=text_color)
-    
-    if var == 'price_median':
-        plt.title(f'Median Property Value by {area}')
-    elif var == 'total_crime':
-        plt.title(f'Total Crime Count by {area}')
-    plt.show()
-
 make_map(ward_house, ward_map, 'ward', 'price_median')
 # plt.savefig('house_ward_map.png')
 
@@ -464,7 +458,6 @@ make_map(ward_house, ward_map, 'ward', 'price_median')
 # Data visualization on time variation of housing price by year
 
 # Boxplot 
-
 plt.figure(figsize=(10, 6))
 sns.boxplot(x='year', y='price', data=cp_data_cleaned)
 plt.title("Boxplot of Housing Prices by Year")
@@ -511,14 +504,6 @@ plt.show()
 
 
 #%%
-
-# Calculate the total crime counts
-cp_data_cleaned['total_crime_count'] = cp_data_cleaned[
-    ['offense_assault w/dangerous weapon', 'offense_homicide', 
-     'offense_robbery', 'offense_sex abuse', 'offense_arson',
-    'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 
-    'offense_theft/other']].sum(axis=1)
-
 # Aggregate the total crime counts for each neighborhood
 tract_crime = cp_data_cleaned[
     ['census_tract', 
@@ -547,8 +532,10 @@ make_map(tract_crime, tract_map, 'census_tract', 'total_crime')
 # suggesting a possible negative impact of crime concentration on property values.
 
 #%%[markdown]
+# 
 # # Scatter plot: All method types(gun, knife, others) vs housing prices
 #%%
+
 def make_scatter_method(df, methods):
 
     plt.figure(figsize=(10, 6))
@@ -574,24 +561,14 @@ def make_scatter_method(df, methods):
     plt.show()
 
 make_scatter_method(cp_data_cleaned, ['method_gun', 'method_knife', 'method_others'])
-
-
 #%%[markdown]
 # From the above scatter plot, we can see that there are no Method_Others influencing the price values. 
 # Let us perform a statistical test(Spearman Correlation) to check the relationship between the price and the method types and prove our point.
 #%%
 
-def spearman_corr(df, target, feature):
-
-    # Calculate Spearman correlation between 'price' and each 'method' type
-    corr, p_value = spearmanr(df[target], df[feature])
-    # Display the results
-    print(f"Spearman Correlation for {feature}: {corr}, p-value: {p_value}")
-
 spearman_corr(cp_data_cleaned, 'price', 'method_gun')
 spearman_corr(cp_data_cleaned, 'price', 'method_knife')
 spearman_corr(cp_data_cleaned, 'price', 'method_others')
-
 #%%[markdown]
 # Let us state our hypothesis,<br>
 # Null Hypothesis (H₀): There is no monotonic relationship between price and method_GUN, method_KNIFE, method_OTHERS.
@@ -608,6 +585,7 @@ spearman_corr(cp_data_cleaned, 'price', 'method_others')
 #<br>
 
 
+
 # Scatter plot between crime categories vs the price distribution
 # %%
 # Aggregate crime counts as violent crime and property crime
@@ -616,20 +594,15 @@ cp_data_cleaned['violent_crime_count'] = cp_data_cleaned[['offense_assault w/dan
 cp_data_cleaned['property_crime_count'] = cp_data_cleaned[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
 
 # Scatter plot for crimes vs price
-def plot_crime_price(df,):
-    df['violent_crime_count'] = df[['offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery', 'offense_sex abuse']].sum(axis=1)
-
-    df['property_crime_count'] = df[['offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other']].sum(axis=1)
-
-    plt.figure(figsize=(10, 6))
-    plt.scatter(df['violent_crime_count'], df['price'], color='red', alpha=0.6, label='Violent Crimes')
-    plt.scatter(df['property_crime_count'], df['price'], color='blue', alpha=0.6, label='Property Crimes')
-    plt.title('Scatter Plot: Violent and Property Crimes vs Price')
-    plt.xlabel('Crime Count')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.grid(alpha=0.5)
-    plt.show()
+plt.figure(figsize=(10, 6))
+plt.scatter(cp_data_cleaned['violent_crime_count'], cp_data_cleaned['price'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(cp_data_cleaned['property_crime_count'], cp_data_cleaned['price'], color='blue', alpha=0.6, label='Property Crimes')
+plt.title('Scatter Plot: Violent and Property Crimes vs Price')
+plt.xlabel('Crime Count')
+plt.ylabel('Price')
+plt.legend()
+plt.grid(alpha=0.5)
+plt.show()
 
 #%%[markdown]
 # As, we can see the above scatter plot is too complex to understand.
@@ -644,32 +617,25 @@ tract_data = cp_data_cleaned.groupby('census_tract').agg({
 }).reset_index()
 
 # Scatter plot for aggregated crime counts vs average price
-def aggcrime_price(df):
-    tract_data = cp_data_cleaned.groupby('census_tract').agg({
-    'violent_crime_count': 'sum',
-    'property_crime_count': 'sum',
-    'price': 'mean'}).reset_index()
-    plt.figure(figsize=(10, 6))
-    plt.scatter(tract_data['violent_crime_count'], tract_data['price'], color='red', alpha=0.6, label='Violent Crimes')
-    plt.scatter(tract_data['property_crime_count'], tract_data['price'], color='blue', alpha=0.6, label='Property Crimes')
-    plt.title('Crime Counts vs Average Price by Census Tract')
-    plt.xlabel('Aggregated Crime Count')
-    plt.ylabel('Average Price ($)')
-    plt.legend()
-    plt.grid(alpha=0.5)
-    plt.show()
+plt.figure(figsize=(10, 6))
+plt.scatter(tract_data['violent_crime_count'], tract_data['price'], color='red', alpha=0.6, label='Violent Crimes')
+plt.scatter(tract_data['property_crime_count'], tract_data['price'], color='blue', alpha=0.6, label='Property Crimes')
+plt.title('Crime Counts vs Average Price by Census Tract')
+plt.xlabel('Aggregated Crime Count')
+plt.ylabel('Average Price ($)')
+plt.legend()
+plt.grid(alpha=0.5)
+plt.show()
 
 #%%
 # Compute correlation coefficients: Price vs violent crime vs property crime
 correlation_matrix = cp_data_cleaned[['price', 'violent_crime_count', 'property_crime_count']].corr()
 
 # Display correlation matrix
-def corr_plot(df):
-    correlation_matrix = df[['price', 'violent_crime_count', 'property_crime_count']].corr()
-    plt.figure(figsize=(8, 6))
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
-    plt.title('Correlation Matrix: Price vs Crime Counts')
-    plt.show()
+plt.figure(figsize=(8, 6))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt=".2f")
+plt.title('Correlation Matrix: Price vs Crime Counts')
+plt.show()
 #%%[markdown]
 # From the above heatmap between Violent Crime, Prperty Crime and Price values, we can say:<br>
 # 1. Violent crime has a stronger and negative impact on property prices compared to property crimes.<br>
@@ -679,23 +645,69 @@ def corr_plot(df):
 #%%
 #cp_data_cleaned['ward'] = cp_data_cleaned['ward'].astype(str)
 
+# Comparing prices based on the crimes in each ward
+grouped_data = cp_data_cleaned.groupby('ward').agg({
+    'price': 'median'
+}).reset_index()
+
+# Set the plotting style
+sns.set_style("whitegrid")
+
 # Create a bar plot: Ward vs Price
-def barplot_ward_price(df):
-    grouped_data = df.groupby('ward').agg({
-    'price': 'median'}).reset_index()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=grouped_data, x='ward', y='price', palette='coolwarm')
+plt.title('Ward vs Median Price')
+plt.xlabel('Ward')
+plt.ylabel('Median Price')
+plt.tight_layout()
+plt.show()
 
-    # Set the plotting style
-    sns.set_style("whitegrid")
-    plt.figure(figsize=(10, 6))
-    sns.barplot(data=grouped_data, x=df['ward'], y=df['price'], palette='coolwarm')
-    plt.title('Ward vs Median Price')
-    plt.xlabel('Ward')
-    plt.ylabel('Median Price')
-    plt.tight_layout()
-    plt.show()
+#%%
 
 
+# Census Tract
 
+# Aggregate the total crime counts for each neighborhood
+tract_crime = cp_data_cleaned[
+    ['census_tract', 
+     'year', 
+     'total_crime_count']
+     ].drop_duplicates(subset=['census_tract', 'year']).groupby('census_tract').agg(
+            total_crime = ('total_crime_count', 'sum'))
+
+# Aggregate the median house price for each census tract
+tract_house = cp_data_cleaned.groupby('census_tract').agg(
+    price_median=('price', 'median'), 
+    price_mean=('price', 'mean')).reset_index()
+tract_house
+
+#%%
+
+tract_map = gpd.read_file('Census_Tracts_in_2010.shp')
+
+# Clean up tract variable and convert into integer
+tract_map['TRACT'] = tract_map['TRACT'].str.lstrip('0').astype(int)
+tract_map.rename(columns = {'TRACT': 'CENSUS_TRACT'}, inplace = True)
+tract_map.columns
+#%%
+
+# Data Visualization of Crime Counts by Census Tract on Map
+crime_merged_map = tract_map.merge(tract_crime, left_on='TRACT', right_on='census_tract', how='left')
+
+fig, ax = plt.subplots(figsize=(12, 10))
+crime_merged_map.plot(column='total_crime', cmap='OrRd', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+plt.title('Crime Count by Census Tract')
+plt.show()
+plt.savefig('crime_tract_map.png')
+
+house_merged_map = tract_map.merge(tract_house, left_on='TRACT', right_on='census_tract', how='left')
+
+# Data Visualization of Median House Price by Census Tract on Map
+fig, ax = plt.subplots(figsize=(12, 10))
+house_merged_map.plot(column='price_median', cmap='Blues', linewidth=1.0, ax=ax, edgecolor='0.5', legend=True)
+plt.title('Median Property Value by Census Tract')
+plt.show()
+plt.savefig('house_tract_map.png')
 
 
 #%%[Markdown]
@@ -807,7 +819,7 @@ print(f'Best CV RMSE: {best_rmse:.4f}')
 # Best CV RMSE: 134926.1966
 #%%
 
-#best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
+# best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
 
 model_params = {
     'objective': 'regression',
@@ -1063,8 +1075,35 @@ plt.show()
 lgb.plot_importance(final_model, importance_type="split", figsize=(7,6), title="LightGBM Feature Importance (Split)")
 plt.show()
 
+#%% [markdown]
 
+# Model Evaluation:
+# Compare the two model including controlling variables and only total crime counts and one with all detailed crime features.
+# The first model with only total crime count achieved 75.6% R2 and the model with all detailed crime feartures achieved 76.32%.
+# There's only a light improvment on performance by inclduing all detailed crime features.
+# This might inidicates that including a more granular crime fearues might not improve the model perforance as much.
+#
+# After looking at the actial vs predicted values plot, we observe that both modelBoth models apear to fit along the line with slight more varaince at the higher end of property price. 
+# The model incorporating all detaled crime features shows a slightly better alignment overall.
+#
+# Feature Importance: 
+# 
+# By analyzing the feature importance for the model for both models,
+# we observe that total crime counts shows high split importance but low gain importance. 
+# This suggests that total crime count might frequently interacts with other features, such as income level, contributing to many splits, but not necessarily improving the performance much on its own.
+#
+#
+# In contrast, median Gross Income and Ward has both high importance in gain and split, indicating that they are strong predictor by itself.
+# Insights: 
 
+# Feature Importance:
+# By looking at the Feature Importance values, median_gross_income plays a dominant role in determining housing price tiers, while crime rates have a noticeable but secondary impact.
+# This analysis highlights that neighborhood income levels are the most crucial factor for classifying housing prices, which aligns with socioeconomic expectations.
+
+# Model Evaluation Interpretation:
+# The model achieved an accuracy of 79%, meaning it correctly classified 79% of the neighborhoods into the three housing price tiers (low, medium, high).
+# The model performs best for the low and high price tiers (Classes 0 and 2), with slightly lower performance for the medium price tier (Class 1). Overall, the model demonstrates reliable and balanced predictions across the three tiers.
+#%%
 ##### Random Forest Regressor
 
 
@@ -1298,72 +1337,3 @@ plt.show()
 # plt.suptitle('Property Value Decomposition')
 # plt.show()
 # %%
-
-
-# Regression problem model 2 
-
-# RANDOM FOREST REGRESSOR 
-
-from sklearn.model_selection import train_test_split,GridSearchCV
-import numpy as np
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.ensemble import RandomForestRegressor
-
-X = df1[['bathrm','rooms', 'bedrm','median_gross_income',
-       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
-       'method_gun', 'method_knife', 'method_others', 'shift_day',
-       'shift_evening', 'shift_midnight']]
-y = df1['price']
-X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
-model = RandomForestRegressor(random_state=42)
-model.fit(X_train,y_train)
-y_pred = model.predict(X_test)
-mse = mean_squared_error(y_test,y_pred)
-r2 = r2_score(y_test,y_pred)
-
-#%%
-print(f"Test MSE: {mse}")
-print(f"Test RMSE: {np.sqrt(mse)}")
-print(f"Test R2 Score: {r2}")
-feature_importance = pd.DataFrame({
-    'features':X.columns,
-    'importance' : model.feature_importances_
-}).sort_values('importance', ascending=True)
-
-#%%
-
-print("Features Importance")
-print(feature_importance.sort_values('importance',ascending=False))
-from sklearn.model_selection import cross_val_score
-
-cv_scores_r2 = cross_val_score(model,X,y,cv=5,scoring='r2')
-cv_scores_rmse = cross_val_score(model,X,y,scoring='neg_mean_squared_error')
-rmse_scores = np.sqrt(-cv_scores_rmse)
-from scipy import stats
-
-def qq(residual):
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111)
-    stats.probplot(residual, dist="norm", plot=ax)
-    ax.set_title('QQ Plot')
-    plt.show()
-
-#%%
-
-residual = y_test - y_pred
-
-qq(residual)
-feature_importance = feature_importance.sort_values
-plt.figure(figsize=(10, 6))
-plt.barh(feature_importance['features'], feature_importance['importance'])
-plt.title('Random Forest Feature Importance')
-plt.xlabel('Importance')
-plt.ylabel('Features')
-
-# Add grid for better readability
-plt.grid(True, axis='x', linestyle='--', alpha=0.6)
-
-# Tight layout to prevent label cutoff
-plt.tight_layout()
-
-plt.show()
