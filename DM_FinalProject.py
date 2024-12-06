@@ -42,6 +42,12 @@ import lightgbm as lgb
 import warnings
 warnings.filterwarnings('ignore')
 
+from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import label_binarize
+from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import roc_auc_score, roc_curve
+from xgboost import XGBClassifier
+
 
 #%%[markdown]
 ## Data Preparation
@@ -1164,6 +1170,196 @@ print(f"Cross-validation accuracy scores: {cv_scores}")
 # The model performs best for the low and high price tiers (Classes 0 and 2), with slightly lower performance for the medium price tier (Class 1). Overall, the model demonstrates reliable and balanced predictions across the three tiers.
 
 ##### XG Boost
+# %%
+# Drop rows with missing target values
+cp_data = cp_data_cleaned.dropna(subset=['price_category'])
+target_column = 'price'
+# Discretize the price column into three tiers
+cp_data['price_category'] = pd.qcut(cp_data[target_column], q=3, labels=['low', 'medium', 'high'])
+
+
+cp_data['violent_crime'] = (cp_data['offense_assault w/dangerous weapon'] +
+                            cp_data['offense_homicide'] +
+                            cp_data['offense_robbery'] +
+                            cp_data['offense_sex abuse']).apply(lambda x: 1 if x > 0 else 0)
+cp_data['property_crime'] = (cp_data['offense_arson'] +
+                            cp_data['offense_burglary'] +
+                            cp_data['offense_motor vehicle theft'] +
+                            cp_data['offense_theft f/auto'] +
+                            cp_data['offense_theft/other']).apply(lambda x: 1 if x > 0 else 0)
+# %%
+# Define features (X) and target (y)
+features = ['violent_crime', 'property_crime',
+            'method_gun', 'method_knife', 'method_others',
+            'shift_day', 'shift_midnight', 'shift_evening',
+            'bathrm','rooms','bedrm' ,'fireplaces','ward',
+            'census_tract','median_gross_income','year'
+            ]
+#['violent_crime','Property_crime','Total_Gross_income','bathrm','num_units' ,'rooms','bedrm' ,'kitchens','fireplaces','census_tract','shift_DAY','shift_EVENING','shift_MIDNIGHT','method_GUN','method_KNIFE','method_OTHERS' ]
+
+X = cp_data[features]
+y = cp_data['price_category']
+
+# Encode target labels as integers
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+
+# Handle missing values in X (fill missing values with column mean)
+X = X.fillna(X.mean())
+# %%
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+# %%
+
+# Train the XGBoost classifier
+xgb_clf = XGBClassifier(
+    use_label_encoder=False,
+    eval_metric='mlogloss',
+    random_state=42,
+    max_depth=6,             # Reduce tree depth to avoid overfitting
+    min_child_weight=3,      # Increase to control tree splits
+    lambda_=1,               # Apply L2 regularization (default is 1)
+    alpha=0,               # Apply L1 regularization
+    learning_rate=0.1,       # Learning rate
+    n_estimators=100)
+xgb_clf.fit(X_train, y_train)
+# %%
+
+# Predict on the test set
+y_pred = xgb_clf.predict(X_test)
+# %%
+# Classification report
+print("Classification Report:")
+print(classification_report(y_test, y_pred, target_names=label_encoder.classes_))
+
+# Confusion matrix
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+#
+# %%
+# Assuming xgb_clf is your trained XGBoost model and X is your feature DataFrame
+feature_importances = xgb_clf.feature_importances_
+features = X.columns
+
+# Create a DataFrame for feature importances
+importance_df = pd.DataFrame({
+    'Feature': features,
+    'Importance': feature_importances
+})
+
+# Sort the DataFrame by Importance (descending order)
+importance_df.sort_values(by='Importance', ascending=False, inplace=True)
+
+# Plot the sorted feature importance
+# Plot the sorted feature importance
+plt.figure(figsize=(10, 7))
+plt.barh(importance_df['Feature'], importance_df['Importance'], color='skyblue')
+plt.title('Feature Importance in XG boost classifier Model')
+plt.xlabel('Importance')
+plt.ylabel('Features')
+plt.gca().invert_yaxis()  # Invert y-axis to show the most important feature on top
+plt.grid(axis='both', linestyle='--', alpha=0.7)  # Add grid for the x-axis
+plt.show()
+
+# %%
+#ROC and AUC calculations
+# Binarize the target variable for multiclass ROC-AUC
+y_test_binarized = label_binarize(y_test, classes=[0, 1, 2])  # Replace with your class labels
+
+# Get predicted probabilities for all classes
+y_pred_proba = xgb_clf.predict_proba(X_test)
+
+# Calculate ROC-AUC using the "ovr" (One-vs-Rest) approach
+auc = roc_auc_score(y_test_binarized, y_pred_proba, multi_class="ovr")
+print(f"AUC (OvR): {auc:.2f}")
+
+# Compute ROC curves for each class
+fpr = {}
+tpr = {}
+thresholds = {}
+
+for i in range(y_test_binarized.shape[1]):
+    fpr[i], tpr[i], thresholds[i] = roc_curve(y_test_binarized[:, i], y_pred_proba[:, i])
+
+# Plot ROC curve for each class
+plt.figure(figsize=(10, 6))
+for i in range(y_test_binarized.shape[1]):
+    plt.plot(fpr[i], tpr[i], label=f"Class {i} (AUC = {roc_auc_score(y_test_binarized[:, i], y_pred_proba[:, i]):.2f})")
+
+plt.plot([0, 1], [0, 1], color="red", linestyle="--")  # Diagonal line for random guessing
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Multiclass ROC Curve")
+plt.legend(loc="lower right")
+plt.grid()
+plt.show()
+
+
+# %%
+#Bias and variance Trade off
+
+# Split the data into training and test sets
+# X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+
+# Initialize variables to store errors
+train_errors = []
+test_errors = []
+
+# Train the model on subsets of the training data
+for m in range(10, len(X_train), 100):
+    # Train on a subset of data
+    xgb_clf = XGBClassifier(use_label_encoder=False, eval_metric='mlogloss', random_state=42)
+    xgb_clf.fit(X_train[:m], y_train[:m])
+    
+    # Calculate training error
+    y_train_pred = xgb_clf.predict(X_train[:m])
+    train_error = mean_squared_error(y_train[:m], y_train_pred)
+    train_errors.append(train_error)
+    
+    # Calculate test error
+    y_test_pred = xgb_clf.predict(X_test)
+    test_error = mean_squared_error(y_test, y_test_pred)
+    test_errors.append(test_error)
+# %%
+# Plot the bias-variance trade-off
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 6))
+plt.plot(np.arange(10, len(X_train), 100), train_errors, label="Training Error", color="blue")
+plt.plot(np.arange(10, len(X_train), 100), test_errors, label="Test Error", color="red")
+plt.xlabel("Training Set Size")
+plt.ylabel("Mean Squared Error")
+plt.title("Bias-Variance Trade-Off")
+plt.legend()
+plt.show()
+
+
+# %%
+# Apply regularization parameters
+xgb_clf = XGBClassifier(
+    use_label_encoder=False,
+    eval_metric='mlogloss',
+    random_state=42,
+    max_depth=9,             # Reduce tree depth to avoid overfitting
+    min_child_weight=3,      # Increase to control tree splits
+    lambda_=1,               # Apply L2 regularization (default is 1)
+    alpha=2,               # Apply L1 regularization
+    learning_rate=0.1,       # Learning rate
+    n_estimators=100         # Number of boosting rounds
+)
+
+# Train the model
+xgb_clf.fit(X_train, y_train)
+
+# Predictions
+y_pred = xgb_clf.predict(X_test)
+
+# Evaluate the model
+print("Classification Report:")
+print(classification_report(y_test, y_pred))
+
+print("Confusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
 
 
 
@@ -1341,3 +1537,5 @@ plt.grid(True, axis='x', linestyle='--', alpha=0.6)
 plt.tight_layout()
 
 plt.show()
+
+#%%
