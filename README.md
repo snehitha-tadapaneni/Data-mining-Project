@@ -7,13 +7,33 @@
 - Presenting the understanding through two SMART questions which shed light on the regression and classification problems with regards to data and how much to socio-economic factors and crime factors affect the price of a property our aim is to uncover this underlying relationship.<br>
 - How do changes in violent crime rates influence median house prices in city of Washington DC during 2020-2024, controlling for socioeconomic factors, using quarterly crime statistics and residential property sales data
 
-## Dependancies to get started with the dataset and preprocessing 
-
+## Creating an enviornment 
+For Mac/Linux
 ```bash
-pip install numpy
-pip isntall matplotlib
-pip install pandas
-pip install sklearn
+# Create virtual environment 
+python -m venv myenv
+
+# Activate virtual environment
+source myenv/bin/activate
+
+# Deactivate when done
+deactivate
+```
+For windows
+```bash
+# Create virtual environment
+python -m venv myenv
+
+# Activate virtual environment
+myenv\Scripts\activate
+
+# Deactivate when done
+deactivate
+```
+
+## Dependancies to get started with the dataset and preprocessing 
+```bash
+
 ```
 ## Below is the workflow for getting the dataset with no outliers and null values 
 ```bash
@@ -22,7 +42,22 @@ df = read_csv('final_return_new.csv')
 ```
 ```bash
 # Heatmap to visualize the correlation
+# Takes in only numerical columns and creates a heatmap to understand the correlation between variables
+def plot_heatmap(df):
+    # Selected only numerical features from the dataset
+    numerical_cols = df.select_dtypes(include=['float64', 'int64']).columns
+    numerical_df = df[numerical_cols]
+    # Compute the correlation matrix for the numerical features 
+    corr = numerical_df.corr()
+    plt.figure(figsize=(12, 8))
+    sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm", cbar=True)
+    plt.title('Correlation Heatmap')
+    plt.show()
 ```
+Correaation between numerical variables 
+![Screenshot 2024-12-06 at 3 21 05 PM](https://github.com/user-attachments/assets/0e2de543-ba4e-4387-ba26-28749883bcc9)
+
+
 ```bash
 # Code to use IQR (Interquartile Range) to remove outliers and plot boxplot and histogram to visualize the price column 
 def iqr(df):
@@ -56,6 +91,7 @@ Post Outlier removal:
 
 <img width="657" alt="Screenshot 2024-12-05 at 10 46 00 PM" src="https://github.com/user-attachments/assets/84a68272-a75a-4465-8027-040094b87116">
 
+Above steps help any user to begin e
 
 Dataset :- 
 
