@@ -7,6 +7,10 @@
 - Presenting the understanding through two SMART questions which shed light on the regression and classification problems with regards to data and how much to socio-economic factors and crime factors affect the price of a property our aim is to uncover this underlying relationship.<br>
 - How do changes in violent crime rates influence median house prices in city of Washington DC during 2020-2024, controlling for socioeconomic factors, using quarterly crime statistics and residential property sales data
 
+## Worked on two SMART questions which focus on the following topics:
+- regression predicting the price of the property based on the various criime realted and socio-economic featues
+- classificaion based problem to classify the prices
+
 ## Creating an enviornment 
 For Mac/Linux
 ```bash
@@ -33,7 +37,7 @@ deactivate
 
 ## Dependancies to get started with the dataset and preprocessing 
 ```bash
-
+pip install -r requirements.txt
 ```
 ## Below is the workflow for getting the dataset with no outliers and null values 
 ```bash
@@ -91,9 +95,17 @@ Post Outlier removal:
 
 <img width="657" alt="Screenshot 2024-12-05 at 10 46 00 PM" src="https://github.com/user-attachments/assets/84a68272-a75a-4465-8027-040094b87116">
 
-Above steps help any user to begin e
+Above steps help any user to begin with the project get teh datset remove null and outlier values
 
-Dataset :- 
+## Regression Models:
+- LightGradient Boosting
+- Random Forest Regressor
+
+## Classification Models
+- Random Forest Classifier
+- XG Bossting
+
+## Dataset :- 
 
 House Pricing Dataset:  https://www.kaggle.com/datasets/christophercorrea/dc-residential-properties?select=raw_address_points.csv
 the house_price18.csv dataset is the cleaned dataset
