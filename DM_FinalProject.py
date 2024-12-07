@@ -1105,7 +1105,7 @@ def qq(residual):
 residual = y_test - y_pred
 
 qq(residual)
-feature_importance = feature_importance.sort_values
+
 plt.figure(figsize=(10, 6))
 plt.barh(feature_importance['features'], feature_importance['importance'])
 plt.title('Random Forest Feature Importance')
