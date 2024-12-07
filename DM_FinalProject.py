@@ -1043,10 +1043,11 @@ plt.show()
 
 #%%
 # RANDOM FOREST REGRESSOR 
+
+##### Model 1: Total Crime Counts
+
 X = cp_data_cleaned[['bathrm','rooms', 'bedrm','median_gross_income',
-       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
-       'method_gun', 'method_knife', 'method_others', 'shift_day',
-       'shift_evening', 'shift_midnight']]
+       'fireplaces', 'census_tract', 'ward', 'year','total_crime_count']]
 y = cp_data_cleaned['price']
 X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
 model = RandomForestRegressor(random_state=42)
@@ -1055,10 +1056,18 @@ y_pred = model.predict(X_test)
 mse = mean_squared_error(y_test,y_pred)
 r2 = r2_score(y_test,y_pred)
 
-# Model 2 : All the features 
+#%%[markdown]
+print(f"Test MSE: {mse}")
+print(f"Test RMSE: {np.sqrt(mse)}")
+print(f"Test R2 Score: {r2}")
+
+
+#%%
+
+##### Model 2: All Features
+
 X = cp_data_cleaned[['bathrm','rooms', 'bedrm','median_gross_income',
-       'fireplaces', 'census_tract', 'ward', 'year','offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery',
-       'offense_sex abuse','offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other'
+       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
        'method_gun', 'method_knife', 'method_others', 'shift_day',
        'shift_evening', 'shift_midnight']]
 y = cp_data_cleaned['price']
@@ -1082,10 +1091,10 @@ feature_importance = pd.DataFrame({
     'importance' : model.feature_importances_
 }).sort_values('importance', ascending=True)
 
-#%%
-
 print("Features Importance")
 print(feature_importance.sort_values('importance',ascending=False))
+
+#%%
 from sklearn.model_selection import cross_val_score
 
 cv_scores_r2 = cross_val_score(model,X,y,cv=5,scoring='r2')
@@ -1105,7 +1114,6 @@ def qq(residual):
 residual = y_test - y_pred
 
 qq(residual)
-feature_importance = feature_importance.sort_values
 plt.figure(figsize=(10, 6))
 plt.barh(feature_importance['features'], feature_importance['importance'])
 plt.title('Random Forest Feature Importance')
@@ -1120,6 +1128,7 @@ plt.tight_layout()
 
 plt.show()
 
+#%% [markdwon]
 # __Insights__:  <br>
 # From the model performance and feature importance, property attributes and socioeconomic factors are the strongest determinants of residential property values in Washington, DC.
 # While crime does influence property prices, its impact is modest compared to these primary factors.<br>
@@ -1127,10 +1136,6 @@ plt.show()
 # 1. Random forest regressor performs great on the dataset with a R2 score of 0.75 showing that it is affective on the data and can predict property prices based on the crime data and methods.
 # 2. It is also able to provide feature importance which makes provided a deeper undertsanding of the model and the data
 # 3. Property specific attributes help in understanding the property pricing and the crime features help in knowing the crime and the correlation
-
-#%%[markdown]
-# Insights:
-
 
 #%%[markdown]
 ### Smart Question 2: For Classification
