@@ -12,7 +12,9 @@
 
 ### Course
 #**Introduction to Data Mining: DS 6103**  
+#<br>
 #**Instructor**: Prof. Ning Rui  
+# <br>
 #**TA**: Parameshwar Bhat
 
 ### SMART Questions
