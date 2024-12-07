@@ -46,9 +46,16 @@ warnings.filterwarnings('ignore')
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import label_binarize
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 from sklearn.metrics import roc_auc_score, roc_curve
 from xgboost import XGBClassifier
+
+from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor
+
+from sklearn.ensemble import RandomForestClassifier 
+
+
 
 
 #%%[markdown]
@@ -193,7 +200,7 @@ cp_data.columns
 cp_data.info()
 
 # Statistics of the data
-cp_data.describe()
+cp_data.describe()                     
 
 #%%
 # Checking for null values/ missing values
@@ -548,7 +555,6 @@ def make_scatter_method(df, methods):
 
 make_scatter_method(cp_data_cleaned, ['method_gun', 'method_knife', 'method_others'])
 
-
 #%%[markdown]
 # From the above scatter plot, we can see that there are no Method_Others influencing the price values. 
 # Let us perform a statistical test(Spearman Correlation) to check the relationship between the price and the method types and prove our point.
@@ -652,7 +658,7 @@ corr_plot(cp_data_cleaned)
 # 2. Property crimes are weakly related to prices, indicating they may not be a strong factor influencing property values in the dataset.<br>
 # 3. The moderate positive correlation between violent and property crimes suggests that crime types are somewhat related in occurrence.<br>
 
-#%%[Markdown]
+#%%[markdown]
 ## Modelling Techniques
 
 #### Smart Question 1: For regression
@@ -757,9 +763,6 @@ print('Best Parameters:', best_params)
 print(f'Best CV RMSE: {best_rmse:.4f}')
 
 #%%
-
-# best_params = {'learning_rate': 0.07, 'max_depth': 15, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0.1}
-
 model_params = {
     'objective': 'regression',
     'metric': 'rmse',
@@ -842,7 +845,7 @@ plt.show()
 
 # %% [markdown]
 
-### Model 2: All Featrues ###
+### Model 2: All Featrues 
 
 # Define features
 features = ['violent_crime_count', 'property_crime_count',
@@ -1035,121 +1038,193 @@ plt.show()
 # From the model performance and feature importance, property attributes and socioeconomic factors are the strongest determinants of residential property values in Washington, DC.
 # While crime does influence property prices, its impact is modest compared to these primary factors.
 
-#%%
-
-##### Random Forest Regressor
-
-
-
-#%%[Markdown]
-#### Smart Question 2: For Classification
-
-##### Random Forest Classifier
+## Model 2: Random Forest Regressor
+# Regression problem model 2 
 
 #%%
-from sklearn.model_selection import train_test_split
+# RANDOM FOREST REGRESSOR 
+X = cp_data_cleaned[['bathrm','rooms', 'bedrm','median_gross_income',
+       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
+       'method_gun', 'method_knife', 'method_others', 'shift_day',
+       'shift_evening', 'shift_midnight']]
+y = cp_data_cleaned['price']
+X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
+model = RandomForestRegressor(random_state=42)
+model.fit(X_train,y_train)
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test,y_pred)
+r2 = r2_score(y_test,y_pred)
 
+#%%[markdown]
+### Feature Importance
+
+#%%
+print(f"Test MSE: {mse}")
+print(f"Test RMSE: {np.sqrt(mse)}")
+print(f"Test R2 Score: {r2}")
+feature_importance = pd.DataFrame({
+    'features':X.columns,
+    'importance' : model.feature_importances_
+}).sort_values('importance', ascending=True)
+
+#%%
+
+print("Features Importance")
+print(feature_importance.sort_values('importance',ascending=False))
+from sklearn.model_selection import cross_val_score
+
+cv_scores_r2 = cross_val_score(model,X,y,cv=5,scoring='r2')
+cv_scores_rmse = cross_val_score(model,X,y,scoring='neg_mean_squared_error')
+rmse_scores = np.sqrt(-cv_scores_rmse)
+from scipy import stats
+
+def qq(residual):
+    fig = plt.figure(figsize=(6, 6))
+    ax = fig.add_subplot(111)
+    stats.probplot(residual, dist="norm", plot=ax)
+    ax.set_title('QQ Plot')
+    plt.show()
+
+#%%
+
+residual = y_test - y_pred
+
+qq(residual)
+feature_importance = feature_importance.sort_values
+plt.figure(figsize=(10, 6))
+plt.barh(feature_importance['features'], feature_importance['importance'])
+plt.title('Random Forest Feature Importance')
+plt.xlabel('Importance')
+plt.ylabel('Features')
+
+# Add grid for better readability
+plt.grid(True, axis='x', linestyle='--', alpha=0.6)
+
+# Tight layout to prevent label cutoff
+plt.tight_layout()
+
+plt.show()
+
+#%%[markdown]
+# Insights:
+
+
+#%%[markdown]
+### Smart Question 2: For Classification
+# "How accurately can violent crime rates and neighborhood income levels classify neighborhoods 
+# in DC into three different housing price tiers: low, medium, and high?"
+
+#### Model 1: Random Forest Classifier
+
+#%%
+# Create a new column 'price_category' by dividing the 'price' column into 3 quantiles and assigning labels [0, 1, 2]
 cp_data_cleaned['price_category'] = pd.qcut(cp_data['price'], q=3, labels=[0, 1, 2])
 
+# Define the features (X) by dropping unnecessary columns and the target variable (y)
 X = cp_data_cleaned.drop(columns=['price_category', 'price', 'offense_arson', 'offense_assault w/dangerous weapon',
        'offense_burglary', 'offense_homicide', 'offense_motor vehicle theft',
        'offense_robbery', 'offense_sex abuse', 'offense_theft f/auto',
        'offense_theft/other'])
-
 y = cp_data_cleaned['price_category']
 
+# Split the dataset into training (70%) and testing (30%) subsets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-
 #%%
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+################## Model Building #####################
+# Initialize the Random Forest Classifier with specified hyperparameters
+rf = RandomForestClassifier(random_state=42, max_depth=20, max_features='sqrt', 
+                             min_samples_leaf=2, n_estimators=100, min_samples_split=15)
 
-rf = RandomForestClassifier(random_state=42, max_depth=20, max_features='sqrt', min_samples_leaf=2, n_estimators=100, min_samples_split=15)
+# Train the Random Forest model on the training data
 rf.fit(X_train, y_train)
 
-# Predictions
+# Make predictions on the test dataset
 y_pred = rf.predict(X_test)
 
-# Evaluate
+# Evaluate the model's accuracy
 accuracy = rf.score(X_test, y_pred)
 print(f"Accuracy: {accuracy:.2f}")
 
-# Confusion Matrix
+# Compute the confusion matrix to evaluate classification performance
 conf_matrix = confusion_matrix(y_test, y_pred)
 print("\nConfusion Matrix:")
 print(conf_matrix)
 
-# Plotting the Confusion Matrix
+# Visualize the confusion matrix using a heatmap
 plt.figure(figsize=(8, 6))
-sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=rf.classes_, yticklabels=rf.classes_)
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", 
+            xticklabels=rf.classes_, yticklabels=rf.classes_)
 plt.title("Confusion Matrix")
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.show()
 
-# Classification Report
+# Generate a detailed classification report with precision, recall, and F1-score for each class
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred))
 
-#%%
-# Feature importance
+#%%[markdown]
+#### Feature importance analysis
 
-# Get feature importance
+# Retrieve the feature importance scores from the trained Random Forest model
 feature_importance = rf.feature_importances_
 
-# Create a DataFrame for better visualization
+# Create a DataFrame for better visualization of feature importance
 features = X.columns
 importance_df = pd.DataFrame({'Feature': features, 'Importance': feature_importance}).sort_values(by='Importance', ascending=False)
 
-# Plot feature importance
+# Plot feature importance for visual interpretation
 plt.figure(figsize=(10, 6))
 plt.barh(importance_df['Feature'], importance_df['Importance'], color='skyblue')
 plt.xlabel('Importance')
 plt.ylabel('Feature')
 plt.title('Feature Importance in Random Forest')
-plt.gca().invert_yaxis()  # Reverse the order for readability
+plt.gca().invert_yaxis()  # Reverse the order for better readability
 plt.show()
 
 #%%
-# Hyperparameter tuning
-from sklearn.model_selection import GridSearchCV
 
-# Define parameter grid
+################## Hyperparameter Tuning #####################
+
+# Hyperparameter tuning using Grid Search
+
+# Define a parameter grid for tuning Random Forest hyperparameters
 param_grid = {
-    'n_estimators': [50, 100, 200, 300, 400],
-    'max_depth': [None, 10, 20, 30],
-    'min_samples_split': [2, 5, 10, 15],
-    'min_samples_leaf': [1, 2, 4, 8],
-    'max_features': ['auto', 'sqrt', 'log2']
+    'n_estimators': [50, 100, 200, 300, 400],           # Number of trees in the forest
+    'max_depth': [None, 10, 20, 30],                    # Maximum depth of the trees
+    'min_samples_split': [2, 5, 10, 15],                # Minimum number of samples required to split a node
+    'min_samples_leaf': [1, 2, 4, 8],                   # Minimum number of samples required at a leaf node
+    'max_features': ['auto', 'sqrt', 'log2']            # Number of features to consider for splitting
 }
 
-# Perform Grid Search
+# Perform a grid search with 5-fold cross-validation to find the best hyperparameters
 grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), 
                            param_grid=param_grid, 
-                           cv=5,  # 5-fold cross-validation
-                           scoring='accuracy', 
-                           n_jobs=-1, 
-                           verbose=2)
+                           cv=5,                      # Number of folds in cross-validation
+                           scoring='accuracy',        # Evaluation metric
+                           n_jobs=-1,                 # Use all available processors
+                           verbose=2)                 # Verbosity level for tracking progress
 
+# Fit the grid search on the training data
 grid_search.fit(X_train, y_train)
 
-# Get the best parameters and accuracy
+# Output the best hyperparameters and the best cross-validation accuracy
 best_params = grid_search.best_params_
 best_score = grid_search.best_score_
 print(f"Best Parameters: {best_params}")
 print(f"Best Cross-Validation Accuracy: {best_score:.2f}")
 
 #%%
-# Cross validation
-from sklearn.model_selection import cross_val_score, KFold
+################ Cross-validation ####################
 
+# Define a KFold object for splitting the data into 5 folds
 kfold = KFold(n_splits=5, shuffle=True, random_state=42)
 
-# Perform cross-validation
+# Perform cross-validation on the Random Forest model using the defined folds
 cv_scores = cross_val_score(rf, X, y, cv=kfold, scoring='accuracy')
 
-# Display the results
+# Display the cross-validation accuracy scores
 print(f"Cross-validation accuracy scores: {cv_scores}")
 
 #%%[markdown]
@@ -1161,7 +1236,8 @@ print(f"Cross-validation accuracy scores: {cv_scores}")
 # The model achieved an accuracy of 79%, meaning it correctly classified 79% of the neighborhoods into the three housing price tiers (low, medium, high).
 # The model performs best for the low and high price tiers (Classes 0 and 2), with slightly lower performance for the medium price tier (Class 1). Overall, the model demonstrates reliable and balanced predictions across the three tiers.
 
-##### XG Boost
+##### Model 2: XG Boost
+
 # %%
 # Drop rows with missing target values
 cp_data = cp_data_cleaned.dropna(subset=['price_category'])
@@ -1228,7 +1304,8 @@ print(classification_report(y_test, y_pred, target_names=label_encoder.classes_)
 print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 #
-# %%
+# %%[markdown]
+#### Feature Importance
 # Assuming xgb_clf is your trained XGBoost model and X is your feature DataFrame
 feature_importances = xgb_clf.feature_importances_
 features = X.columns
@@ -1254,7 +1331,7 @@ plt.grid(axis='both', linestyle='--', alpha=0.7)  # Add grid for the x-axis
 plt.show()
 
 # %%
-#ROC and AUC calculations
+############ ROC and AUC calculations #################
 # Binarize the target variable for multiclass ROC-AUC
 y_test_binarized = label_binarize(y_test, classes=[0, 1, 2])  # Replace with your class labels
 
@@ -1288,7 +1365,7 @@ plt.show()
 
 
 # %%
-#Bias and variance Trade off
+# Bias and variance Trade off
 
 # Split the data into training and test sets
 # X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
@@ -1361,173 +1438,3 @@ print(confusion_matrix(y_test, y_pred))
 
 
 
-
-# %%
-#AJ1--Crime Rate vs Rent Relationship
-# Scatter plot for Crime Rate vs Rent
-plt.figure(figsize=(10, 6))
-
-# Scatter plot points
-plt.scatter(cp_data['total_crimes'], cp_data['price'], color='Blue', alpha=0.7)
-
-# Adding labels and title
-plt.title('Crime Rate vs Rent Relationship', fontsize=16)
-plt.xlabel('Total Crimes', fontsize=12)
-plt.ylabel('Average Rent', fontsize=12)
-
-# Adding gridlines
-plt.grid(visible=True, linestyle='--', alpha=0.6)
-
-# Adjust layout for clarity
-plt.tight_layout()
-
-# Show plot
-plt.show()
-# %%
-#AJ2--further analysis 1:Analyze the density of points in clusters to determine patterns.
-# Hexbin Plot for density analysis
-plt.figure(figsize=(10, 6))
-
-# Creating a hexbin plot for density
-plt.hexbin(cp_data['total_crimes'], cp_data['price'], gridsize=30, cmap='Blues', mincnt=1)
-
-# Adding colorbar for density
-cb = plt.colorbar(label='Density')
-
-# Adding labels and title
-plt.title('Density of Crime Rate vs Rent Relationship', fontsize=16)
-plt.xlabel('Total Crimes', fontsize=12)
-plt.ylabel('Average Rent', fontsize=12)
-
-# Adding grid
-plt.grid(visible=True, linestyle='--', alpha=0.6)
-
-# Show plot
-plt.tight_layout()
-plt.show()
-# %%
-#AJ3--Crime Rate vs Rent Relationship with Trend Line
-from scipy.stats import pearsonr
-
-# Scatter plot with a trend line
-plt.figure(figsize=(10, 6))
-
-# Plotting the scatter plot
-sns.scatterplot(x='total_crimes', y='price', data=cp_data, alpha=0.7, color='blue', label='Data Points')
-
-# Adding a trend line (using numpy polyfit for linear regression)
-z = np.polyfit(cp_data['total_crimes'], cp_data['price'], 1)  # 1 for a linear fit
-p = np.poly1d(z)
-plt.plot(cp_data['total_crimes'], p(cp_data['total_crimes']), color='orange', linestyle='--', label='Trend Line')
-
-# Calculating the correlation coefficient
-correlation, _ = pearsonr(cp_data['total_crimes'], cp_data['price'])
-plt.text(50, cp_data['price'].max() * 0.9, f"Correlation: {correlation:.2f}", fontsize=12, color='red')
-
-# Adding labels and title
-plt.title('Crime Rate vs Rent Relationship with Trend Line', fontsize=16)
-plt.xlabel('Total Crimes', fontsize=12)
-plt.ylabel('Average Rent', fontsize=12)
-plt.legend()
-plt.grid(visible=True, linestyle='--', alpha=0.6)
-
-# Show plot
-plt.tight_layout()
-plt.show()
-# %%
-#AJ4--Correlation heat map
-# Calculate Pearson correlation between crime rate and property value
-crime_property_corr = cp_data[['total_crimes', 'price']].corr()
-
-# Visualize the correlation matrix
-
-sns.heatmap(crime_property_corr, annot=True, cmap='coolwarm', fmt='.2f')
-plt.title('Correlation Between Crime Rate and Property Value')
-plt.show()
-# %%
-# from statsmodels.tsa.seasonal import seasonal_decompose
-
-# # Decompose both crime rate and property value time series
-# crime_decomposition = seasonal_decompose(cp_data['total_crimes'], model='additive', period=12)
-# property_decomposition = seasonal_decompose(cp_data['price'], model='additive', period=12)
-
-# # Plot the decompositions
-# crime_decomposition.plot()
-# plt.suptitle('Crime Rate Decomposition')
-# plt.show()
-
-# property_decomposition.plot()
-# plt.suptitle('Property Value Decomposition')
-# plt.show()
-# %%
-
-
-# Regression problem model 2 
-
-# RANDOM FOREST REGRESSOR 
-
-from sklearn.model_selection import train_test_split,GridSearchCV
-import numpy as np
-from sklearn.metrics import mean_squared_error, r2_score
-from sklearn.ensemble import RandomForestRegressor
-
-X = df1[['bathrm','rooms', 'bedrm','median_gross_income',
-       'fireplaces', 'census_tract', 'ward', 'year','violent_crime_count','property_crime_count',
-       'method_gun', 'method_knife', 'method_others', 'shift_day',
-       'shift_evening', 'shift_midnight']]
-y = df1['price']
-X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
-model = RandomForestRegressor(random_state=42)
-model.fit(X_train,y_train)
-y_pred = model.predict(X_test)
-mse = mean_squared_error(y_test,y_pred)
-r2 = r2_score(y_test,y_pred)
-
-#%%
-print(f"Test MSE: {mse}")
-print(f"Test RMSE: {np.sqrt(mse)}")
-print(f"Test R2 Score: {r2}")
-feature_importance = pd.DataFrame({
-    'features':X.columns,
-    'importance' : model.feature_importances_
-}).sort_values('importance', ascending=True)
-
-#%%
-
-print("Features Importance")
-print(feature_importance.sort_values('importance',ascending=False))
-from sklearn.model_selection import cross_val_score
-
-cv_scores_r2 = cross_val_score(model,X,y,cv=5,scoring='r2')
-cv_scores_rmse = cross_val_score(model,X,y,scoring='neg_mean_squared_error')
-rmse_scores = np.sqrt(-cv_scores_rmse)
-from scipy import stats
-
-def qq(residual):
-    fig = plt.figure(figsize=(6, 6))
-    ax = fig.add_subplot(111)
-    stats.probplot(residual, dist="norm", plot=ax)
-    ax.set_title('QQ Plot')
-    plt.show()
-
-#%%
-
-residual = y_test - y_pred
-
-qq(residual)
-feature_importance = feature_importance.sort_values
-plt.figure(figsize=(10, 6))
-plt.barh(feature_importance['features'], feature_importance['importance'])
-plt.title('Random Forest Feature Importance')
-plt.xlabel('Importance')
-plt.ylabel('Features')
-
-# Add grid for better readability
-plt.grid(True, axis='x', linestyle='--', alpha=0.6)
-
-# Tight layout to prevent label cutoff
-plt.tight_layout()
-
-plt.show()
-
-#%%
