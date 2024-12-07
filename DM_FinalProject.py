@@ -1105,6 +1105,14 @@ plt.tight_layout()
 
 plt.show()
 
+# __Insights__:  <br>
+# From the model performance and feature importance, property attributes and socioeconomic factors are the strongest determinants of residential property values in Washington, DC.
+# While crime does influence property prices, its impact is modest compared to these primary factors.<br>
+
+# 1. Random forest regressor performs great on the dataset with a R2 score of 0.75 showing that it is affective on the data and can predict property prices based on the crime data and methods.
+# 2. It is also able to provide feature importance which makes provided a deeper undertsanding of the model and the data
+# 3. Property specific attributes help in understanding the property pricing and the crime features help in knowing the crime and the correlation
+
 #%%[markdown]
 # Insights:
 
