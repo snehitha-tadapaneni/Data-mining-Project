@@ -1055,6 +1055,21 @@ y_pred = model.predict(X_test)
 mse = mean_squared_error(y_test,y_pred)
 r2 = r2_score(y_test,y_pred)
 
+# Model 2 : All the features 
+X = cp_data_cleaned[['bathrm','rooms', 'bedrm','median_gross_income',
+       'fireplaces', 'census_tract', 'ward', 'year','offense_assault w/dangerous weapon', 'offense_homicide', 'offense_robbery',
+       'offense_sex abuse','offense_arson', 'offense_burglary', 'offense_motor vehicle theft', 'offense_theft f/auto', 'offense_theft/other'
+       'method_gun', 'method_knife', 'method_others', 'shift_day',
+       'shift_evening', 'shift_midnight']]
+y = cp_data_cleaned['price']
+X_train, X_test,y_train, y_test = train_test_split(X,y,test_size=0.3, random_state=42)
+model = RandomForestRegressor(random_state=42)
+model.fit(X_train,y_train)
+y_pred = model.predict(X_test)
+mse = mean_squared_error(y_test,y_pred)
+r2 = r2_score(y_test,y_pred)
+
+
 #%%[markdown]
 ### Feature Importance
 
