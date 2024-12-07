@@ -1431,7 +1431,12 @@ print("Confusion Matrix:")
 print(confusion_matrix(y_test, y_pred))
 
 
+#%%[markdown]
+## CONCLUSION
+# "In summary, median_gross_income plays a dominant role in determining housing price tiers, while crime rates have a noticeable but secondary impact."
+# "This analysis highlights that neighborhood income levels are the most crucial factor for classifying housing prices, which aligns with socioeconomic expectations."
 
+# Although incorporating detailed crime features has marginally improved our model performance, it highlights the need to delve deeper into how these crime features interact with other variables, such as neighborhood income levels"
 
 
 
