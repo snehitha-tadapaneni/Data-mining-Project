@@ -57,7 +57,6 @@ from sklearn.ensemble import RandomForestClassifier
 
 
 
-
 #%%[markdown]
 ## Data Preparation
 # We have merged and aggregated both datasets based on `census_tract` and offense counts. 
@@ -87,9 +86,9 @@ dc_crime['census_tract'] = dc_crime['census_tract'].astype(float).astype(int)
 
 
 #%%
-#############################
+###########################
 # Step 2: Create dummy variables for categorical columns
-#############################
+###########################
 
 # Generate dummy variables for offense types, methods, and shift
 offense_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'offense']], columns=['offense'])
