@@ -111,9 +111,9 @@ method_grouped = method_grouped[method_grouped['start_year'] >= 2014]
 shift_grouped = shift_grouped[shift_grouped['start_year'] >= 2014]
 
 #%%
-#############################
+###########################
 # Step 4: Merge grouped data into a combined dataset
-#############################
+###########################
 
 # Merge offense, method, and shift data into a single dataframe
 crime_census_combined = offense_grouped.merge(
@@ -129,9 +129,9 @@ crime_census_combined['census_tract'] = crime_census_combined['census_tract'].as
 crime_census_combined['start_year'] = crime_census_combined['start_year'].astype(int)
 
 #%%
-#############################
+###########################
 # Step 5: Load and preprocess housing data
-#############################
+###########################
 
 # Load housing data
 dc_housing = pd.read_csv("tract_house_101.csv", index_col = 0)
