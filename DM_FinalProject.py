@@ -96,9 +96,9 @@ method_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'method'
 shift_dummies = pd.get_dummies(dc_crime[['start_year', 'census_tract', 'shift']], columns=['shift'])
 
 #%%
-#############################
+###########################
 # Step 3: Group data by year and census tract
-#############################
+###########################
 
 # Sum dummy variables grouped by 'start_year' and 'census_tract'
 offense_grouped = offense_dummies.groupby(['start_year', 'census_tract']).sum().reset_index()
